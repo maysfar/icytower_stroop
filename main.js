@@ -5,7 +5,17 @@ const sizes = {
   width: 1000,
   height: 700,
 };
+const step_sizes = {
+  width: 40,
+  height: 150,
+};
+const step_locations = {
+  x1: 200,
+  x2: 500,
+  x3:800
+};
 
+  const bgScrollSpeed = 1;
 const speedDown = 300
 const jumpVelocity = -400;
 
@@ -18,7 +28,12 @@ class GameScene extends Phaser.Scene {
     this.target
     this.points = 0
     this.platforms
+    this.floors
     this.floor
+    this.step1
+    this.step2
+    this.step3
+
 
   }
 
@@ -34,20 +49,21 @@ class GameScene extends Phaser.Scene {
   this.bg2 = this.add.image(0, -sizes.height, "bg").setOrigin(0, 0).setDisplaySize(sizes.width, sizes.height);
 
   this.platforms = this.physics.add.staticGroup();
-
-  this.floor = this.platforms.create(sizes.width / 2, sizes.height - 150, "step");
+  this.floors  = this.physics.add.staticGroup();
+  this.floor = this.floors.create(sizes.width / 2, sizes.height - 150, "step");
   this.floor.setDisplaySize(sizes.width, 35).refreshBody(); // make it wide like the screen
 
-  this.platforms.create(200, 400, "step").setDisplaySize(150, 40).refreshBody();
-  this.platforms.create(500, 400, "step").setDisplaySize(150, 40).refreshBody();
-  this.platforms.create(800, 400, "step").setDisplaySize(150, 40).refreshBody();
+  this.step1 = this.platforms.create(step_locations.x1, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+  this.step2 = this.platforms.create(step_locations.x2, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+  this.step3 = this.platforms.create(step_locations.x3, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
   
   // Player in center above the floor
   this.player = this.physics.add.sprite(sizes.width / 2, sizes.height - 250, "player");
   this.player.setScale(0.5); 
   this.player.setBounce(0.5);
 
-  this.physics.add.collider(this.player, this.platforms);
+  this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
+  this.physics.add.collider(this.player, this.floors);
 
   this.cursor = this.input.keyboard.createCursorKeys();
 
@@ -56,21 +72,25 @@ class GameScene extends Phaser.Scene {
 
   update() {
   const { left, right, up } = this.cursor;
-  const bgScrollSpeed = 0.3;
   this.bg1.y += bgScrollSpeed;
   this.bg2.y += bgScrollSpeed;
   this.player.y += bgScrollSpeed;
   this.platforms.children.iterate((child) => {
   child.y += bgScrollSpeed;
   child.body.y += bgScrollSpeed;
-})
+  })
+
+  this.floors.children.iterate((child) => {
+  child.y += bgScrollSpeed;
+  child.body.y += bgScrollSpeed;
+  })
 
   if (this.bg1.y >= sizes.height) {
   this.bg1.y = this.bg2.y - sizes.height;
-}
-if (this.bg2.y >= sizes.height) {
+  }
+  if (this.bg2.y >= sizes.height) {
   this.bg2.y = this.bg1.y - sizes.height;
-}
+  }
   
 
   if (left.isDown) {
@@ -85,10 +105,40 @@ if (this.bg2.y >= sizes.height) {
   if (up.isDown && this.player.body.touching.down) {
     this.player.setVelocityY(jumpVelocity);
   }
+    this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
+
 }
 
-  
- 
+handleStepLanding = (player, step) => {
+  if(player.y+5<step.y && player.x<step.x+step_sizes.width){
+    step.setDisplaySize(sizes.width,35).refreshBody()
+    this.floor=step
+    this.platforms.remove(step,false);
+    this.floors.add(step)
+    step.x=sizes.width/2
+    
+    const toRemove = [];
+
+    this.platforms.children.iterate((child) => {
+      if (child !== this.floor) {
+        toRemove.push(child);
+      }
+    });
+
+    toRemove.forEach((child) => {
+    child.destroy(); // safely destroy after collection
+    });
+
+    this.platforms.clear(false); // clean up group reference
+    this.physics.world.step(0); 
+    [step_locations.x1, step_locations.x2, step_locations.x3].forEach(x => {
+    this.platforms.create(x, step.y-200, "step").setDisplaySize(150, 40).refreshBody();
+    });
+  }
+    
+
+};
+
 
 }
 
