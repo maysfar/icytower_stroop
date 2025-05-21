@@ -15,7 +15,7 @@ const step_locations = {
   x3:800
 };
 
-  const bgScrollSpeed = 1;
+const bgScrollSpeed = 0.5;
 const speedDown = 300
 const jumpVelocity = -400;
 
@@ -34,12 +34,21 @@ class GameScene extends Phaser.Scene {
     this.step2
     this.step3
     this.isPaused = true;
+    this.stroopWords = ["apple", "bike", "Red", "Blue", "Green", "Yellow", "House"];
+    this.colors = ["red", "green", "blue"];
+    this.colorMap = {
+      red: "R",
+      green: "G",
+      blue: "B"
+    };
+    this.rtStartTime = null;
+    this.reacted = false;
   }
 
   preload() {
     this.load.image("bg","/assets/background.png");
     this.load.image("player","/assets/player_1.png");
-    this.load.image("step","/assets/step.png").si
+    this.load.image("step","/assets/step.png");
   }
 
   create() {
@@ -70,7 +79,6 @@ this.playBtn.style.display = "inline";
   this.step1 = this.platforms.create(step_locations.x1, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
   this.step2 = this.platforms.create(step_locations.x2, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
   this.step3 = this.platforms.create(step_locations.x3, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
-  
   // Player in center above the floor
   this.player = this.physics.add.sprite(sizes.width / 2, sizes.height - 250, "player");
   this.player.setScale(0.5); 
@@ -79,8 +87,25 @@ this.playBtn.style.display = "inline";
   this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
   this.physics.add.collider(this.player, this.floors);
 
-  this.cursor = this.input.keyboard.createCursorKeys();
+  this.stroopText = this.add.text(sizes.width / 2, 50, "", {
+  fontSize: "48px",
+  fontStyle: "bold",
+  color: "#fff"
+  }).setOrigin(0.5);
 
+  this.score = 0;
+this.scoreText = this.add.text(sizes.width - 20, 20, "Score: 0", {
+  fontSize: "24px",
+  color: "#fff"
+}).setOrigin(1, 0);
+
+  this.cursor = this.input.keyboard.createCursorKeys();
+  this.rtText = this.add.text(sizes.width - 20, 50, "RT: -", {
+  fontSize: "20px",
+  color: "#fff"
+}).setOrigin(1, 0);
+  this.setNewStroopTrial();
+  
 }
 
 startCountdown() {
@@ -132,6 +157,9 @@ restartGame() {
   this.platforms.children.iterate((child) => {
   child.y += bgScrollSpeed;
   child.body.y += bgScrollSpeed;
+ if (child.labelText) {
+    child.labelText.y += bgScrollSpeed;
+  }
   })
 
   this.floors.children.iterate((child) => {
@@ -160,12 +188,18 @@ restartGame() {
     this.player.setVelocityY(jumpVelocity);
   }
     this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
+  if (!this.reacted && (left.isDown || right.isDown || up.isDown)) {
+  this.reacted = true;
+  const rt = this.time.now - this.rtStartTime;
+  this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
+}
 
 }
 
 handleStepLanding = (player, step) => {
   if(player.body.touching.down && step.body.touching.up ){
     step.setDisplaySize(sizes.width,35).refreshBody()
+    step.labelText.destroy()
     this.floor=step
     this.platforms.remove(step,false);
     this.floors.add(step)
@@ -180,7 +214,11 @@ handleStepLanding = (player, step) => {
     });
 
     toRemove.forEach((child) => {
-    child.destroy(); // safely destroy after collection
+      if (child.labelText) {
+      child.labelText.destroy()
+    }
+    child.destroy();
+    
     });
 
     this.platforms.clear(false); // clean up group reference
@@ -188,11 +226,48 @@ handleStepLanding = (player, step) => {
     [step_locations.x1, step_locations.x2, step_locations.x3].forEach(x => {
     this.platforms.create(x, step.y-200, "step").setDisplaySize(150, 40).refreshBody();
     });
+
+        const jumpedLabel = step.label;
+if (jumpedLabel === this.currentCorrectLetter) {
+  this.score += 1;
+  this.scoreText.setText("Score: " + this.score);
+}
+this.setNewStroopTrial();
   }
-    
+
 
 };
 
+setNewStroopTrial() {
+  this.rtStartTime = this.time.now;
+  this.reacted = false;
+  const word = Phaser.Utils.Array.GetRandom(this.stroopWords);
+  const color = Phaser.Utils.Array.GetRandom(this.colors);
+  this.currentColor = color;
+  this.currentCorrectLetter = this.colorMap[color];
+
+  this.stroopText.setText(word).setColor(color);
+
+  // Label the 3 steps randomly with R/G/B
+  const labels = Phaser.Utils.Array.Shuffle(["R", "G", "B"]);
+
+  let i = 0;
+  this.platforms.children.iterate(step => {
+    if (step !== this.floor) {
+      if (!step.labelText) {
+        step.labelText = this.add.text(0, 0, "", {
+          fontSize: "32px",
+          color: "#fff"
+        }).setOrigin(0.5);
+      }
+
+      step.label = labels[i];
+      step.labelText.setText(step.label);
+      step.labelText.setPosition(step.x, step.y - 30); // above the step
+      i++;
+    }
+  });
+}
 
 }
 
