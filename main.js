@@ -33,8 +33,7 @@ class GameScene extends Phaser.Scene {
     this.step1
     this.step2
     this.step3
-
-
+    this.isPaused = false;
   }
 
   preload() {
@@ -44,6 +43,22 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
+
+  document.getElementById("pauseBtn").addEventListener("click", () => {
+  this.physics.pause();
+  this.isPaused = true;
+  document.getElementById("pauseBtn").style.display = "none";
+  document.getElementById("playBtn").style.display = "inline";
+  });
+
+  document.getElementById("playBtn").addEventListener("click", () => {
+  this.physics.resume();
+  this.isPaused = false;
+  document.getElementById("pauseBtn").style.display = "inline";
+  document.getElementById("playBtn").style.display = "none";
+  });
+
+  
   //we use two bg elements to alternate between them so we can scroll down
   this.bg1 = this.add.image(0, 0, "bg").setOrigin(0, 0).setDisplaySize(sizes.width, sizes.height);
   this.bg2 = this.add.image(0, -sizes.height, "bg").setOrigin(0, 0).setDisplaySize(sizes.width, sizes.height);
@@ -71,6 +86,7 @@ class GameScene extends Phaser.Scene {
 
 
   update() {
+  if (this.isPaused) return;
   const { left, right, up } = this.cursor;
   this.bg1.y += bgScrollSpeed;
   this.bg2.y += bgScrollSpeed;
