@@ -18,6 +18,7 @@ class GameScene extends Phaser.Scene {
     this.target
     this.points = 0
     this.platforms
+    this.floor
 
   }
 
@@ -34,15 +35,15 @@ class GameScene extends Phaser.Scene {
 
   this.platforms = this.physics.add.staticGroup();
 
-  const floor = this.platforms.create(sizes.width / 2, sizes.height - 65, "step");
-  floor.setDisplaySize(sizes.width, 35).refreshBody(); // make it wide like the screen
+  this.floor = this.platforms.create(sizes.width / 2, sizes.height - 150, "step");
+  this.floor.setDisplaySize(sizes.width, 35).refreshBody(); // make it wide like the screen
 
   this.platforms.create(200, 400, "step").setDisplaySize(150, 40).refreshBody();
   this.platforms.create(500, 400, "step").setDisplaySize(150, 40).refreshBody();
   this.platforms.create(800, 400, "step").setDisplaySize(150, 40).refreshBody();
   
   // Player in center above the floor
-  this.player = this.physics.add.sprite(sizes.width / 2, sizes.height - 150, "player");
+  this.player = this.physics.add.sprite(sizes.width / 2, sizes.height - 250, "player");
   this.player.setScale(0.5); 
   this.player.setBounce(0.5);
 
@@ -55,10 +56,15 @@ class GameScene extends Phaser.Scene {
 
   update() {
   const { left, right, up } = this.cursor;
-  const bgScrollSpeed = 2;
-
+  const bgScrollSpeed = 0.3;
   this.bg1.y += bgScrollSpeed;
   this.bg2.y += bgScrollSpeed;
+  this.player.y += bgScrollSpeed;
+  this.platforms.children.iterate((child) => {
+  child.y += bgScrollSpeed;
+  child.body.y += bgScrollSpeed;
+})
+
   if (this.bg1.y >= sizes.height) {
   this.bg1.y = this.bg2.y - sizes.height;
 }
