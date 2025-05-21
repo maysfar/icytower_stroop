@@ -110,7 +110,7 @@ class GameScene extends Phaser.Scene {
 }
 
 handleStepLanding = (player, step) => {
-  if(player.y+5<step.y && player.x<step.x+step_sizes.width){
+  if(player.body.touching.down && step.body.touching.up ){
     step.setDisplaySize(sizes.width,35).refreshBody()
     this.floor=step
     this.platforms.remove(step,false);
