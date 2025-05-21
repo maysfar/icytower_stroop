@@ -33,7 +33,7 @@ class GameScene extends Phaser.Scene {
     this.step1
     this.step2
     this.step3
-    this.isPaused = false;
+    this.isPaused = true;
   }
 
   preload() {
@@ -44,19 +44,18 @@ class GameScene extends Phaser.Scene {
 
   create() {
 
-  document.getElementById("pauseBtn").addEventListener("click", () => {
-  this.physics.pause();
-  this.isPaused = true;
-  document.getElementById("pauseBtn").style.display = "none";
-  document.getElementById("playBtn").style.display = "inline";
-  });
+this.pauseBtn = document.getElementById("pauseBtn");
+this.playBtn = document.getElementById("playBtn");
+this.restartBtn = document.getElementById("restartBtn");
+this.countdownText = document.getElementById("countdown");
 
-  document.getElementById("playBtn").addEventListener("click", () => {
-  this.physics.resume();
-  this.isPaused = false;
-  document.getElementById("pauseBtn").style.display = "inline";
-  document.getElementById("playBtn").style.display = "none";
-  });
+// Button events
+this.pauseBtn.addEventListener("click", () => this.pauseGame());
+this.playBtn.addEventListener("click", () => this.startCountdown());
+this.restartBtn.addEventListener("click", () => this.restartGame());
+
+this.pauseBtn.style.display = "none";
+this.playBtn.style.display = "inline"; 
 
   
   //we use two bg elements to alternate between them so we can scroll down
@@ -84,6 +83,45 @@ class GameScene extends Phaser.Scene {
 
 }
 
+startCountdown() {
+  this.playBtn.style.display = "none";
+  this.countdownText.style.display = "block";
+  let count = 3;
+
+  this.countdownText.innerText = count;
+  this.time.addEvent({
+    delay: 1000,
+    repeat: 2,
+    callback: () => {
+      count--;
+      this.countdownText.innerText = count > 0 ? count : "GO!";
+      if (count === 0) {
+        this.time.delayedCall(500, () => {
+          this.countdownText.style.display = "none";
+          this.startGame();
+        });
+      }
+    }
+  });
+}
+
+startGame() {
+  this.isPaused = false;
+  this.physics.resume();
+  this.pauseBtn.style.display = "inline";
+  this.restartBtn.style.display = "inline";
+}
+
+pauseGame() {
+  this.isPaused = true;
+  this.physics.pause();
+  this.pauseBtn.style.display = "none";
+  this.playBtn.style.display = "inline";
+}
+
+restartGame() {
+  this.scene.restart(); // reload the whole scene
+}
 
   update() {
   if (this.isPaused) return;

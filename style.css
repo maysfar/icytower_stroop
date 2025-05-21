@@ -19,9 +19,9 @@ body {
 body {
   background-color: var(--dkClr);
   color: var(--liClr);
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  position: relative; /* important */
+  height: 100%;
+  overflow: hidden;
 }
 
 header,
@@ -38,7 +38,6 @@ main {
 }
 
 #gameCanvas {
-  border: 1px solid red;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -49,13 +48,38 @@ main {
 
 #ui {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: calc(50% - 400px); /* top of canvas */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
   z-index: 10;
 }
 
 #ui button {
   font-size: 18px;
   padding: 10px 20px;
-  margin-right: 10px;
 }
+
+#countdown {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 120px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 2px 2px 10px #000;
+  z-index: 10;
+  display: none;
+}
+
+#gameContainer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1000px; /* same as your canvas */
+  height: 700px;  /* same as your canvas */
+  transform: translate(-50%, -50%);
+}
+
