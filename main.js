@@ -146,6 +146,7 @@ pauseGame() {
 }
 
 restartGame() {
+  this.isPaused = true;
   this.scene.restart(); // reload the whole scene
 }
 
