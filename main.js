@@ -104,7 +104,6 @@ this.scoreText = this.add.text(sizes.width - 20, 20, "Score: 0", {
   fontSize: "20px",
   color: "#fff"
 }).setOrigin(1, 0);
-  this.setNewStroopTrial();
   
 }
 
@@ -135,6 +134,8 @@ startGame() {
   this.physics.resume();
   this.pauseBtn.style.display = "inline";
   this.restartBtn.style.display = "inline";
+
+  this.setNewStroopTrial();
 }
 
 pauseGame() {
