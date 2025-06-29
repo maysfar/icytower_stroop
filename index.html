@@ -1,23 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/assets/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Icy Tower Stroop</title>
-    <div id="ui" >
-    <button id="pauseBtn">⏸️ Pause</button>
-    <button id="playBtn" style="display: none;">▶️ Play</button>
-    <button id="restartBtn" style="display:none">🔄 Restart</button>
-    </div>
-  </head>
-  <body>
-    <main>
-      <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        <div id="countdown">3</div>
-      </div>
-    </main>
-    <script type="module" src="/main.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome – Stroop Experiment</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #dbeafe, #f0f9ff);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background-color: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      color: #1e3a8a;
+    }
+
+    p {
+      color: #374151;
+    }
+
+    input[type="text"] {
+      padding: 12px;
+      width: 80%;
+      margin-top: 20px;
+      font-size: 1rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    button {
+      margin-top: 30px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Welcome!</h1>
+    <p>In this study, you will complete two types of Stroop tasks.<br/>
+      Please enter your Participant ID to begin.</p>
+
+    <input type="text" id="participantId" placeholder="Participant ID" />
+    <br/>
+    <button onclick="startExperiment()">Start</button>
+  </div>
+
+  <script>
+    function startExperiment() {
+      const id = document.getElementById("participantId").value.trim();
+      if (!id) {
+        alert("Please enter your Participant ID.");
+        return;
+      }
+
+      // Save ID
+      localStorage.setItem("participantId", id);
+
+      // Randomly choose task order
+      //const order = Math.random() < 0.5 ? "classicFirst" : "gameFirst";
+      const order = "gameFirst"; // Force game first for now
+      localStorage.setItem("taskOrder", order);
+
+      // Redirect
+      if (order === "classicFirst") {
+        window.location.href = "classic.html";
+      } else {
+        window.location.href = "game.html";
+      }
+    }
+  </script>
+
+</body>
 </html>
