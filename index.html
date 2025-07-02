@@ -85,8 +85,7 @@
       localStorage.setItem("participantId", id);
 
       // Randomly choose task order
-      //const order = Math.random() < 0.5 ? "classicFirst" : "gameFirst";
-      const order = "gameFirst"; // Force game first for now
+      const order = Math.random() < 0.5 ? "classicFirst" : "gameFirst";
       localStorage.setItem("taskOrder", order);
 
       // Redirect

@@ -1,10 +1,201 @@
 <!DOCTYPE html>
+
 <html>
-  <head>
-    <title>Classic Stroop Placeholder</title>
-  </head>
-  <body style="text-align:center; padding-top:100px; font-family:sans-serif;">
-    <h1>Classic Stroop Task Coming Soon</h1>
-    <p>This is a placeholder page.</p>
-  </body>
+    <head>
+        <meta charset="utf-8"/>
+        <title>Classic Stroop</title>
+        <script src="https://code.jquery.com/jquery-3.7.1.js" 
+                integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" 
+                crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <center>
+            <div>
+                <p>Classic Stroop!</p>
+                <canvas id="experiment" width=600px height=600px></canvas>
+            </div>
+        </center>
+
+        <style>
+            #experiment {
+                border: 2px solid white;
+                background-color: black; 
+            }
+        </style>
+
+<script>
+    // your existing globals
+    var colorWords = ["red", "green", "blue","yellow", "purple", "brown", "black", "pink"];
+    var neutralWords = ["bike", "window", "door", "book", "tree", "car", "dog", "cat"];
+    var colors = ["#FF0000", "#00FF00", "#0000FF"];
+    var trials = 30;
+    var sessions = 6;
+    var sessionNum = 0;
+
+    function getRandom(){
+        let StimType = Math.floor(Math.random()*3),
+            StimulusWord, StimulusColor;
+
+        if (StimType === 0) {
+            let idx = Math.floor(Math.random()*3);
+            StimulusWord  = colorWords[idx];
+            StimulusColor = colors[idx];
+        }
+        else if (StimType === 1) {
+            let idx1 = Math.floor(Math.random()*colorWords.length),
+                idx2 = Math.floor(Math.random()*3);
+            while (idx1 === idx2) {
+                idx2 = Math.floor(Math.random()*3);
+            }
+            StimulusWord  = colorWords[idx1];
+            StimulusColor = colors[idx2];
+        }
+        else {
+            let idx1 = Math.floor(Math.random()*neutralWords.length),
+                idx2 = Math.floor(Math.random()*3);
+            StimulusWord  = neutralWords[idx1];
+            StimulusColor = colors[idx2];
+        }
+        return [StimulusWord, StimulusColor];
+    }
+
+    function endSession(){
+        clearCanvas();
+        writeText("press Spacebar to start");
+        $(document).one('keydown', e => {
+            if (e.keyCode === 32){
+                if (sessionNum >= sessions) {
+                clearCanvas();
+                writeText("You finished tha task. Thank you!")
+                } else {
+                    runSession();
+                }
+            } 
+        });
+    }
+
+    async function runTrial(durationMs) {
+        const trialState = { timeoutId: null, keyListener: null };
+        const feedback = ["Right!", "Wrong!"];
+        const result = null;
+
+        function cleanup() {
+            if (trialState.timeoutId !== null) {
+                clearTimeout(trialState.timeoutId);
+                trialState.timeoutId = null;
+            }
+            if (trialState.keyListener !== null) {
+                document.removeEventListener('keydown', trialState.keyListener);
+                trialState.keyListener = null;
+            }
+        }
+
+        const timeoutPromise = new Promise(resolve => {
+            trialState.timeoutId = setTimeout(() => {
+                cleanup();
+                resolve({ reason: 'timeout' });
+            }, durationMs);
+        });
+
+        const keyPromise = new Promise(resolve => {
+            trialState.keyListener = function(e) {
+                cleanup();
+                resolve({ reason: 'keypress', key: e.key });
+
+            };
+            document.addEventListener('keydown', trialState.keyListener);
+        });
+
+        return await Promise.race([ timeoutPromise, keyPromise ]);
+    }
+
+async function runSession() {
+    sessionNum++;
+
+    for (let trialNum = 0; trialNum < trials; trialNum++) {
+    clearCanvas();
+
+        const [word, color] = getRandom();
+        writeText(word, color);
+
+        const result = await runTrial(2000);
+        let feedbackWord;
+        if (result.reason === 'keypress') {
+             if (
+            (color === colors[0] && result.key === 'r') ||
+            (color === colors[1] && result.key === 'g') ||
+            (color === colors[2] && result.key === 'b')
+            ) {
+                feedbackWord = "Right!";
+                
+            } else {
+                feedbackWord = "Wrong!";
+            }
+            clearCanvas();
+            writeText(feedbackWord);
+            await new Promise(r => setTimeout(r, 500));
+            clearCanvas();
+            writeText("+");
+            await new Promise(r => setTimeout(r, 500));
+        } else {
+            clearCanvas();
+            writeText("+");
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+    endSession();
+}
+
+    function clearCanvas(){
+        window.ctx.fillStyle = "#FFFFFF";
+        window.ctx.clearRect(0, 0, window.canvas.width, window.canvas.height);
+    }
+    function writeText(text, color = "#FFFFFF"){
+        clearCanvas();
+        window.ctx.fillStyle = color;
+        window.ctx.fillText(text, window.canvas.width/2, window.canvas.height/2);
+    }
+    function setup(){
+        window.canvas = document.getElementById("experiment");
+        window.ctx = window.canvas.getContext("2d");
+        window.ctx.font = "16px Arial";
+        window.ctx.textAlign = "center";
+    }
+
+    function instructions() {
+        clearCanvas();
+
+        const lines = [
+            "Press G for green",
+            "Press B for blue",
+            "Press Y for yellow",
+            "Press Spacebar to start"
+        ];
+        const lineHeight = 30; 
+        const startY = window.canvas.height/2 - (1.5 * lineHeight);
+
+        window.ctx.fillStyle = "#FFFFFFF";
+        lines.forEach((text, i) => {
+            window.ctx.fillText(
+            text,
+            window.canvas.width/2,
+            startY + i * lineHeight
+            );
+        });
+
+        $(document).one('keydown', e => {
+            if (e.keyCode === 32) runSession();
+        });
+        }
+
+    function main(){
+        setup();
+        instructions();
+    }
+
+    $(window).on('load', main);
+</script>
+
+
+    </body>
 </html>
