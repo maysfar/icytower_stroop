@@ -48,6 +48,7 @@ class GameScene extends Phaser.Scene {
     this.rtStartTime = null;
     this.reacted = false;
     this.sessionLabelOrder = ["R", "G", "B"]; // default order
+    this.nonResponseHandled = false;
   }
 
   preload() {
@@ -113,6 +114,12 @@ class GameScene extends Phaser.Scene {
     fontSize: "20px",
     color: "#fff"
   }).setOrigin(1, 0);
+
+  this.feedbackText = this.add.text(sizes.width / 2, sizes.height / 2, "", {
+  fontSize: "36px",
+  color: "#ff0000",
+  fontStyle: "bold"
+}).setOrigin(0.5);
     
   }
 
@@ -159,7 +166,7 @@ restartGame() {
   this.scene.restart(); // reload the whole scene
 }
 
-  update() {
+update() {
   if (this.isPaused) return;
   const { left, right, up } = this.cursor;
   this.bg1.y += bgScrollSpeed;
@@ -204,6 +211,14 @@ restartGame() {
   const rt = this.time.now - this.rtStartTime;
   this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
 }
+  const firstPlatform = this.platforms.getChildren()[0];
+  if (
+    this.player.y - this.player.displayHeight / 2 > sizes.height ||
+    (firstPlatform && firstPlatform.y > sizes.height)
+  ) {
+    this.isPaused = true;
+    this.handleNonResponse();
+  }
 
 }
 
@@ -243,6 +258,7 @@ if (jumpedLabel === this.currentCorrectLetter) {
   this.score += 1;
   this.scoreText.setText("Score: " + this.score);
 }
+
 // Move to the next trial or session
 this.trialIndex += 1;
 
@@ -320,6 +336,88 @@ endGamePhase() {
     window.location.href = "qualtrics.html";
   });
 }
+
+handleNonResponse() {
+  console.log("⛔ Non-response detected first time");
+  if (this.nonResponseHandled) return;
+  this.nonResponseHandled = true;
+
+  console.log("⛔ Non-response detected");
+  this.feedbackText.setText("Try to respond faster!");
+
+
+
+  this.time.delayedCall(500, () => {
+    this.trialIndex++;
+
+    if (this.trialIndex >= this.trialsPerSession) {
+      this.sessionIndex++;
+      this.trialIndex = 0;
+
+      if (this.sessionIndex >= this.totalSessions) {
+        this.feedbackText.setText("");
+        this.cleanup();
+        this.CreateNewFloors();
+        this.endGamePhase();
+
+        return;
+      }
+
+      this.cleanup();
+      this.CreateNewFloors();
+      this.feedbackText.setText("");
+      this.showSessionBreak();
+      this.nonResponseHandled = false;
+  
+      return;
+    }
+
+    this.cleanup();
+    this.CreateNewFloors();
+    // 🧠 Reset trial
+    this.time.delayedCall(500, () => {
+      this.feedbackText.setText("");
+      this.setNewStroopTrial();
+    });
+
+    this.isPaused = false;
+    this.nonResponseHandled = false;
+  });
+}
+
+cleanup(){ // come back here to remove the blue border line .
+    // 🧹 Clean up all current platforms
+    this.platforms.children.iterate(step => {
+      if (step && step.labelText) {
+        step.labelText.destroy();
+      }
+      if (step) step.destroy();
+    });
+    this.platforms.clear(true);
+
+    // 🧹 Clean up the floor if it exists
+    if (this.floor) {
+      this.floors.remove(this.floor, true, true);
+    }
+
+}
+
+CreateNewFloors(){
+  
+    // 🧱 Create new floor
+    this.floor = this.floors.create(sizes.width / 2, sizes.height - 150, "step");
+    this.floor.setDisplaySize(sizes.width, 35).refreshBody();
+
+    // 🧱 Create new steps
+    this.step1 = this.platforms.create(step_locations.x1, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    this.step2 = this.platforms.create(step_locations.x2, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    this.step3 = this.platforms.create(step_locations.x3, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+
+    // 👤 Reset player
+    this.player.y = sizes.height - 250;
+
+}
+
 
 }
 
