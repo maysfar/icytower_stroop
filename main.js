@@ -24,8 +24,8 @@ class GameScene extends Phaser.Scene {
     super("scene-game");
     this.sessionIndex = 0;       // Current session number (starts at 0)
     this.trialIndex = 0;         // Current trial number within the session
-    this.trialsPerSession = 6;   // How many trials in each session
-    this.totalSessions = 2;      // How many sessions in total
+    this.trialsPerSession = 2;   // How many trials in each session
+    this.totalSessions = 6;      // How many sessions in total
     this.players
     this.cursor
     this.playerSpeed=speedDown+50
@@ -49,15 +49,31 @@ class GameScene extends Phaser.Scene {
     this.reacted = false;
     this.sessionLabelOrder = ["R", "G", "B"]; // default order
     this.nonResponseHandled = false;
+    this.permutations = [["R", "G", "B"], ["R", "B", "G"], ["G", "R", "B"],
+    ["G", "B", "R"],["B", "R", "G"],["B", "G", "R"]];
+    this.BgMusic;
+    this.stepSound;
+    this.superSound;
+    this.hurryupSound;
   }
 
   preload() {
     this.load.image("bg","/assets/background.png");
     this.load.image("player","/assets/player_1.png");
     this.load.image("step","/assets/step.png");
+    this.load.audio("BgMusic", "/assets/BgMusic.mp3");
+    this.load.audio("stepSound", "/assets/step.mp3");
+    this.load.audio("superSound", "/assets/super.mp3");
+    this.load.audio("hurryupSound", "/assets/hurryup.mp3");
   }
 
   create() {
+
+    this.BgMusic = this.sound.add("BgMusic");
+    this.stepSound = this.sound.add("stepSound");
+    this.superSound = this.sound.add("superSound");
+    this.hurryupSound = this.sound.add("hurryupSound");
+    this.BgMusic.play();
 
     this.pauseBtn = document.getElementById("pauseBtn");
     this.playBtn = document.getElementById("playBtn");
@@ -224,6 +240,7 @@ update() {
 
 handleStepLanding = (player, step) => {
   if(player.body.touching.down && step.body.touching.up ){
+    this.stepSound.play();
     step.setDisplaySize(sizes.width,35).refreshBody()
     step.labelText.destroy()
     this.floor=step
@@ -315,10 +332,11 @@ setNewStroopTrial() {
  showSessionBreak() {
   this.isPaused = true;
   this.breakScreen.style.display = "block";
+  this.superSound.play();
 
   this.nextSessionBtn.onclick = () => {
     this.breakScreen.style.display = "none";
-    this.sessionLabelOrder = Phaser.Utils.Array.Shuffle(["R", "G", "B"]);
+    this.sessionLabelOrder = this.permutations[this.sessionIndex];
     this.startCountdown(); // <- same countdown you use at the beginning
 
   };
@@ -344,6 +362,7 @@ handleNonResponse() {
 
   console.log("⛔ Non-response detected");
   this.feedbackText.setText("Try to respond faster!");
+  this.hurryupSound.play();
 
 
 
