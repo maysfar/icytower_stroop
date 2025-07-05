@@ -28,8 +28,8 @@
     var colorWords = ["red", "green", "blue","yellow", "purple", "brown", "black", "pink"];
     var neutralWords = ["bike", "window", "door", "book", "tree", "car", "dog", "cat"];
     var colors = ["#FF0000", "#00FF00", "#0000FF"];
-    var trials = 30;
-    var sessions = 6;
+    var trials = 5;
+    var sessions = 2;
     var sessionNum = 0;
 
     function getRandom(){
@@ -59,20 +59,26 @@
         return [StimulusWord, StimulusColor];
     }
 
-    function endSession(){
-        clearCanvas();
-        writeText("press Spacebar to start");
+function endSession(){
+    clearCanvas();
+    setTimeout(() => {
+        writeText("press Spacebar to continue");
         $(document).one('keydown', e => {
             if (e.keyCode === 32){
                 if (sessionNum >= sessions) {
-                clearCanvas();
-                writeText("You finished tha task. Thank you!")
+                    clearCanvas();
+                    writeText("You finished the task. Thank you!");
+                    setTimeout(() => {
+                        window.location.href = "qualtrics.html";
+                    }, 2000); // 2 seconds delay
                 } else {
                     runSession();
                 }
             } 
         });
-    }
+    }, 1500); // 1 second delay
+}
+
 
     async function runTrial(durationMs) {
         const trialState = { timeoutId: null, keyListener: null };
