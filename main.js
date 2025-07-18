@@ -75,22 +75,15 @@ class GameScene extends Phaser.Scene {
     this.hurryupSound = this.sound.add("hurryupSound");
     this.BgMusic.play();
 
-    this.pauseBtn = document.getElementById("pauseBtn");
-    this.playBtn = document.getElementById("playBtn");
-    this.restartBtn = document.getElementById("restartBtn");
+
     this.countdownText = document.getElementById("countdown");
     this.breakScreen = document.getElementById("breakScreen");
 
 
     // Button events
-    this.pauseBtn.addEventListener("click", () => this.pauseGame());
-    this.playBtn.addEventListener("click", () => this.startCountdown());
-    this.restartBtn.addEventListener("click", () => this.restartGame());
-    this.nextSessionBtn = document.getElementById("nextSessionBtn");
 
 
-    this.pauseBtn.style.display = "none";
-    this.playBtn.style.display = "inline"; 
+; 
 
   
     //we use two bg elements to alternate between them so we can scroll down
@@ -128,6 +121,7 @@ class GameScene extends Phaser.Scene {
   }).setOrigin(1, 0);
 
     this.cursor = this.input.keyboard.createCursorKeys();
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.rtText = this.add.text(sizes.width - 20, 50, "RT: -", {
     fontSize: "20px",
     color: "#fff"
@@ -142,7 +136,6 @@ class GameScene extends Phaser.Scene {
   }
 
 startCountdown() {
-  this.playBtn.style.display = "none";
   this.countdownText.style.display = "block";
   let count = 3;
 
@@ -166,8 +159,6 @@ startCountdown() {
 startGame() {
   this.isPaused = false;
   this.physics.resume();
-  this.pauseBtn.style.display = "inline";
-  this.restartBtn.style.display = "inline";
 
   this.setNewStroopTrial();
 }
@@ -175,8 +166,7 @@ startGame() {
 pauseGame() {
   this.isPaused = true;
   this.physics.pause();
-  this.pauseBtn.style.display = "none";
-  this.playBtn.style.display = "inline";
+
 }
 
 restartGame() {
@@ -185,6 +175,17 @@ restartGame() {
 }
 
 update() {
+if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+  if (this.breakScreen.style.display === "block") {
+    // Advance from session break
+    this.breakScreen.style.display = "none";
+    this.sessionLabelOrder = this.permutations[this.sessionIndex];
+    this.startCountdown();
+  } else if (this.countdownText.style.display !== "block") {
+    // Start game from beginning 
+    this.startCountdown();
+  }
+}
   if (this.isPaused) return;
   const { left, right, up } = this.cursor;
   this.bg1.y += bgScrollSpeed;
@@ -336,12 +337,12 @@ setNewStroopTrial() {
   this.breakScreen.style.display = "block";
   this.superSound.play();
 
-  this.nextSessionBtn.onclick = () => {
-    this.breakScreen.style.display = "none";
-    this.sessionLabelOrder = this.permutations[this.sessionIndex];
-    this.startCountdown(); // <- same countdown you use at the beginning
+  //this.nextSessionBtn.onclick = () => {
+    //this.breakScreen.style.display = "none";
+    //this.sessionLabelOrder = this.permutations[this.sessionIndex];
+    //this.startCountdown(); // <- same countdown you use at the beginning
 
-  };
+  //};
 }
 
 endGamePhase() {
