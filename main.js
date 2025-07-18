@@ -76,16 +76,6 @@ class GameScene extends Phaser.Scene {
     this.BgMusic.play();
 
 
-    this.countdownText = document.getElementById("countdown");
-    this.breakScreen = document.getElementById("breakScreen");
-
-
-    // Button events
-
-
-; 
-
-  
     //we use two bg elements to alternate between them so we can scroll down
     this.bg1 = this.add.image(0, 0, "bg").setOrigin(0, 0).setDisplaySize(sizes.width, sizes.height);
     this.bg2 = this.add.image(0, -sizes.height, "bg").setOrigin(0, 0).setDisplaySize(sizes.width, sizes.height);
@@ -132,29 +122,12 @@ class GameScene extends Phaser.Scene {
   color: "#ff0000",
   fontStyle: "bold"
 }).setOrigin(0.5);
-    
-  }
 
-startCountdown() {
-  this.countdownText.style.display = "block";
-  let count = 3;
-
-  this.countdownText.innerText = count;
-  this.time.addEvent({
-    delay: 1000,
-    repeat: 2,
-    callback: () => {
-      count--;
-      this.countdownText.innerText = count > 0 ? count : "GO!";
-      if (count === 0) {
-        this.time.delayedCall(500, () => {
-          this.countdownText.style.display = "none";
-          this.startGame();
-        });
-      }
-    }
-  });
+this.stroopText.setText("Press Space to start").setColor("#ffffffff");
+this.stroopText.setVisible(true);
 }
+
+
 
 startGame() {
   this.isPaused = false;
@@ -176,14 +149,15 @@ restartGame() {
 
 update() {
 if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-  if (this.breakScreen.style.display === "block") {
-    // Advance from session break
-    this.breakScreen.style.display = "none";
+  const text = this.stroopText.text;
+
+  if (text.includes("Session Complete")) {
+    // End of session → start next
     this.sessionLabelOrder = this.permutations[this.sessionIndex];
-    this.startCountdown();
-  } else if (this.countdownText.style.display !== "block") {
-    // Start game from beginning 
-    this.startCountdown();
+    this.startGame();
+  } else if (text.includes("Press Space to start")) {
+    // First trial or restart → start game
+    this.startGame();  
   }
 }
   if (this.isPaused) return;
@@ -334,24 +308,18 @@ setNewStroopTrial() {
 
  showSessionBreak() {
   this.isPaused = true;
-  this.breakScreen.style.display = "block";
+  this.stroopText.setText("Session Complete\nPress Space to continue").setColor("#ffffffff");
+  this.stroopText.setVisible(true);
   this.superSound.play();
 
-  //this.nextSessionBtn.onclick = () => {
-    //this.breakScreen.style.display = "none";
-    //this.sessionLabelOrder = this.permutations[this.sessionIndex];
-    //this.startCountdown(); // <- same countdown you use at the beginning
-
-  //};
 }
 
 endGamePhase() {
   this.isPaused = true;
 
-  this.add.text(sizes.width / 2, sizes.height / 2, "Task Complete!", {
-    fontSize: "48px",
-    color: "#ffffff"
-  }).setOrigin(0.5);
+  this.stroopText.setText("Task Complete!").setColor("#ffffffff");
+  this.stroopText.setVisible(true);
+
 
   this.time.delayedCall(2000, () => {
     window.location.href = "qualtrics.html";
