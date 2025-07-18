@@ -109,6 +109,8 @@ class GameScene extends Phaser.Scene {
     this.player = this.physics.add.sprite(sizes.width / 2, sizes.height - 250, "player");
     this.player.setScale(0.5); 
     this.player.setBounce(0.5);
+    this.player.setCollideWorldBounds(true);
+    this.player.body.world.bounds.bottom = Infinity; 
 
     this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
     this.physics.add.collider(this.player, this.floors);
