@@ -408,12 +408,16 @@ handleNonResponse() {
 
 cleanup(){ // come back here to remove the blue border line .
     // 🧹 Clean up all current platforms
+    const platformsArray = []
     this.platforms.children.iterate(step => {
-      if (step && step.labelText) {
-        step.labelText.destroy();
-      }
-      if (step) step.destroy();
+     platformsArray.push(step);
     });
+    platformsArray.forEach((step)=>{
+      if(step.labelText){
+        step.labelText.destroy()
+      }
+      step.destroy();
+    })    
     this.platforms.clear(true);
 
     // 🧹 Clean up the floor if it exists
