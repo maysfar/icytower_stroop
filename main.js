@@ -83,11 +83,12 @@ class GameScene extends Phaser.Scene {
     this.platforms = this.physics.add.staticGroup();
     this.floors  = this.physics.add.staticGroup();
     this.floor = this.floors.create(sizes.width / 2, sizes.height - 150, "step");
-    this.floor.setDisplaySize(sizes.width, 35).refreshBody(); // make it wide like the screen
+    this.floor.setDisplaySize(sizes.width, step_sizes.width).refreshBody(); // make it wide like the screen
 
-    this.step1 = this.platforms.create(step_locations.x1, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
-    this.step2 = this.platforms.create(step_locations.x2, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
-    this.step3 = this.platforms.create(step_locations.x3, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    const firstStepY = this.floor.y - 200;
+    this.step1 = this.platforms.create(step_locations.x1, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    this.step2 = this.platforms.create(step_locations.x2, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    this.step3 = this.platforms.create(step_locations.x3, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     // Player in center above the floor
     this.player = this.physics.add.sprite(sizes.width / 2, sizes.height - 250, "player");
     this.player.setScale(0.5); 
@@ -185,20 +186,15 @@ if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
   this.bg2.y = this.bg1.y - sizes.height;
   }
   
-
-  if (left.isDown) {
-    this.player.setVelocityX(-200);
-  } else if (right.isDown) {
-    this.player.setVelocityX(200);
-  } else {
-    this.player.setVelocityX(0);
+if (!this.reacted && !this.isPaused) {
+  if (Phaser.Input.Keyboard.JustDown(this.cursor.left)) {
+    this.handleResponse(this.step1);
+  } else if (Phaser.Input.Keyboard.JustDown(this.cursor.up)) {
+    this.handleResponse(this.step2);
+  } else if (Phaser.Input.Keyboard.JustDown(this.cursor.right)) {
+    this.handleResponse(this.step3);
   }
-
-  // Only allow jump if player is touching the ground
-  if (up.isDown && this.player.body.touching.down) {
-    this.player.setVelocityY(jumpVelocity);
-  }
-    this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
+}
   if (!this.reacted && (left.isDown || right.isDown || up.isDown)) {
   this.reacted = true;
   const rt = this.time.now - this.rtStartTime;
@@ -214,16 +210,68 @@ if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
   }
 
 }
+handleResponse(step) {
+  this.reacted = true;
+  const rt = this.time.now - this.rtStartTime;
+  this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
+
+  // Play jump sound if you like
+  this.stepSound.play();
+
+  // Animate arc jump
+  this.arcJumpToStep(step);
+}
+
+arcJumpToStep(step) {
+  const startX = this.player.x;
+  const startY = this.player.y;
+
+  //capture step's position at jump start
+  const endX = step.x;
+  const endY = step.y - 100; // fixed offset above platform
+
+  const midX = (startX + endX) / 2;
+  const midY = Math.min(startY, endY) - 150;
+
+  // Freeze physics
+  this.player.body.allowGravity = false;
+  this.player.body.setVelocity(0, 0);
+
+  //Lock step in place for this jump
+  const stepTarget = { x: endX, y: endY };
+
+  this.tweens.addCounter({
+    from: 0,
+    to: 1,
+    duration: 400,
+    ease: 'Sine.easeInOut',
+    onUpdate: (tween) => {
+      const t = tween.getValue();
+      const x = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * stepTarget.x;
+      const y = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * stepTarget.y;
+      this.player.setPosition(x, y);
+    },
+    onComplete: () => {
+      this.player.body.allowGravity = true;
+
+      // Force snap to final position
+      this.player.setPosition(stepTarget.x, stepTarget.y);
+
+      this.handleStepLanding(this.player, step);
+    }
+  });
+}
 
 handleStepLanding = (player, step) => {
   if(player.body.touching.down && step.body.touching.up ){
     this.stepSound.play();
-    step.setDisplaySize(sizes.width,35).refreshBody()
+    step.setDisplaySize(sizes.width,step_sizes.width).refreshBody()
     step.labelText.destroy()
     this.floor=step
     this.platforms.remove(step,false);
     this.floors.add(step)
     step.x=sizes.width/2
+    step.refreshBody()
     
     const toRemove = [];
 
@@ -243,11 +291,10 @@ handleStepLanding = (player, step) => {
 
     this.platforms.clear(false); // clean up group reference
     this.physics.world.step(0); 
-    [step_locations.x1, step_locations.x2, step_locations.x3].forEach(x => {
-    this.platforms.create(x, step.y-200, "step").setDisplaySize(150, 40).refreshBody();
-    });
-
-        const jumpedLabel = step.label;
+    this.step1 = this.platforms.create(step_locations.x1, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    this.step2 = this.platforms.create(step_locations.x2, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    this.step3 = this.platforms.create(step_locations.x3, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    const jumpedLabel = step.label;
 if (jumpedLabel === this.currentCorrectLetter) {
   this.score += 1;
   this.scoreText.setText("Score: " + this.score);
@@ -400,12 +447,13 @@ CreateNewFloors(){
   
     // 🧱 Create new floor
     this.floor = this.floors.create(sizes.width / 2, sizes.height - 150, "step");
-    this.floor.setDisplaySize(sizes.width, 35).refreshBody();
+    this.floor.setDisplaySize(sizes.width, step_sizes.width).refreshBody();
 
     // 🧱 Create new steps
-    this.step1 = this.platforms.create(step_locations.x1, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
-    this.step2 = this.platforms.create(step_locations.x2, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
-    this.step3 = this.platforms.create(step_locations.x3, 300, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    const firstStepY = this.floor.y - 200;
+    this.step1 = this.platforms.create(step_locations.x1,firstStepY , "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    this.step2 = this.platforms.create(step_locations.x2, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    this.step3 = this.platforms.create(step_locations.x3, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
 
     // 👤 Reset player
     this.player.y = sizes.height - 250;
