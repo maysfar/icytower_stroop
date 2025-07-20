@@ -323,32 +323,40 @@ this.setNewStroopTrial();
 };
 
 setNewStroopTrial() {
-  this.rtStartTime = this.time.now;
   this.reacted = false;
-  const word = Phaser.Utils.Array.GetRandom(this.stroopWords);
-  const color = Phaser.Utils.Array.GetRandom(this.colors);
-  this.currentColor = color;
-  this.currentCorrectLetter = this.colorMap[color];
+  this.rtStartTime = null;
 
-  this.stroopText.setText(word).setColor(color);
+  // Show fixation cross "+"
+  this.stroopText.setText("+").setColor("#ffffff").setFontSize("64px");
+  this.stroopText.setVisible(true);
 
-  const labels = this.sessionLabelOrder;
+  // Delay before showing Stroop stimulus
+  this.time.delayedCall(500, () => {
+    const word = Phaser.Utils.Array.GetRandom(this.stroopWords);
+    const color = Phaser.Utils.Array.GetRandom(this.colors);
+    this.currentColor = color;
+    this.currentCorrectLetter = this.colorMap[color];
 
-  let i = 0;
-  this.platforms.children.iterate(step => {
-    if (step !== this.floor) {
-      if (!step.labelText) {
-        step.labelText = this.add.text(0, 0, "", {
-          fontSize: "32px",
-          color: "#fff"
-        }).setOrigin(0.5);
+    this.stroopText.setText(word).setColor(color);
+
+    const labels = this.sessionLabelOrder;
+    let i = 0;
+    this.platforms.children.iterate((step) => {
+      if (step !== this.floor) {
+        if (!step.labelText) {
+          step.labelText = this.add.text(0, 0, "", {
+            fontSize: "32px",
+            color: "#fff"
+          }).setOrigin(0.5);
+        }
+        step.label = labels[i];
+        step.labelText.setText(step.label);
+        step.labelText.setPosition(step.x, step.y - 30);
+        i++;
       }
-
-      step.label = labels[i];
-      step.labelText.setText(step.label);
-      step.labelText.setPosition(step.x, step.y - 30); // above the step
-      i++;
-    }
+    });
+    // Now we start measuring RT
+    this.rtStartTime = this.time.now;
   });
 }
 
