@@ -15,8 +15,8 @@ const step_locations = {
   x3:800
 };
 
-const bgScrollSpeed = 1.2;
-const speedDown = 300
+const bgScrollSpeed = 3;
+const speedDown = 500
 const jumpVelocity = -400;
 
 class GameScene extends Phaser.Scene {
@@ -47,6 +47,7 @@ class GameScene extends Phaser.Scene {
     };
     this.rtStartTime = null;
     this.reacted = false;
+    this.reactionAllowed = false; // Allow reactions after the Stroop word is shown
     this.sessionLabelOrder = ["R", "G", "B"]; // default order
     this.nonResponseHandled = false;
     this.permutations = [["R", "G", "B"], ["R", "B", "G"], ["G", "R", "B"],
@@ -99,11 +100,25 @@ class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
     this.physics.add.collider(this.player, this.floors);
 
-    this.stroopText = this.add.text(sizes.width / 2, 50, "", {
+  this.stroopText = this.add.text(sizes.width / 2, 50, "", {
     fontSize: "48px",
     fontStyle: "bold",
-    color: "#fff"
-    }).setOrigin(0.5);
+    color: "#fff",
+    align: "center",
+    stroke: "#000",
+    strokeThickness: 4
+}).setOrigin(0.5)
+  .setBackgroundColor("#faf7f788"); // optional transparency
+
+this.messageText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, "", {
+  fontSize: "40px",
+  fontStyle: "bold",
+  color: "#ffffff",
+  align: "center",
+  stroke: "#000000",
+  strokeThickness: 4
+}).setOrigin(0.5).setBackgroundColor("#2ba4a488").setVisible(false);
+
 
     this.score = 0;
   this.scoreText = this.add.text(sizes.width - 20, 20, "Score: 0", {
@@ -126,6 +141,8 @@ class GameScene extends Phaser.Scene {
 
 this.stroopText.setText("Press Space to start").setColor("#ffffffff");
 this.stroopText.setVisible(true);
+this.messageText.setScrollFactor(0);
+this.messageText.setDepth(100); // <-- force max depth
 }
 
 
@@ -151,8 +168,9 @@ restartGame() {
 update() {
 if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
   const text = this.stroopText.text;
+  const msg = this.messageText.text;
 
-  if (text.includes("Session Complete")) {
+  if (msg.includes("Session Complete")) {
     // End of session → start next
     this.sessionLabelOrder = this.permutations[this.sessionIndex];
     this.startGame();
@@ -186,7 +204,7 @@ if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
   this.bg2.y = this.bg1.y - sizes.height;
   }
   
-if (!this.reacted && !this.isPaused) {
+if (!this.reacted && !this.isPaused && this.reactionAllowed) { //check here to allow jumping more than once
   if (Phaser.Input.Keyboard.JustDown(this.cursor.left)) {
     this.handleResponse(this.step1);
   } else if (Phaser.Input.Keyboard.JustDown(this.cursor.up)) {
@@ -195,8 +213,7 @@ if (!this.reacted && !this.isPaused) {
     this.handleResponse(this.step3);
   }
 }
-  if (!this.reacted && (left.isDown || right.isDown || up.isDown)) {
-  this.reacted = true;
+  if (!this.reacted && this.rtStartTime !== null && this.reactionAllowed && (left.isDown || right.isDown || up.isDown)) {
   const rt = this.time.now - this.rtStartTime;
   this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
 }
@@ -211,6 +228,12 @@ if (!this.reacted && !this.isPaused) {
 
 }
 handleResponse(step) {
+  // check if reaction is allowed - meaning the player can jump
+  const stepTop = step.y - step.displayHeight / 2;
+  if (stepTop < 110) { // if the step is too high on the screen
+    return; // Step is too high on the screen to land on — ignore
+  }
+
   this.reacted = true;
   const rt = this.time.now - this.rtStartTime;
   this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
@@ -324,7 +347,10 @@ this.setNewStroopTrial();
 
 setNewStroopTrial() {
   this.reacted = false;
+  this.reactionAllowed = false; // Allow reactions for this trial
   this.rtStartTime = null;
+  this.messageText.setVisible(false); // Hide the message text
+
 
   // Show fixation cross "+"
   this.stroopText.setText("+").setColor("#ffffff").setFontSize("64px");
@@ -357,25 +383,31 @@ setNewStroopTrial() {
     });
     // Now we start measuring RT
     this.rtStartTime = this.time.now;
+    this.time.delayedCall(300, () => {
+    this.reactionAllowed = true;
+    });
   });
 }
 
 
- showSessionBreak() {
+showSessionBreak() {
   this.isPaused = true;
-  this.stroopText.setText("Session Complete\nPress Space to continue").setColor("#ffffffff");
-  this.stroopText.setVisible(true);
+
+  this.messageText.setText("Session Complete\nPress Space to continue")
+  .setVisible(true);
+
+  this.stroopText.setVisible(false); // Hide Stroop word
+
   this.superSound.play();
 
 }
 
 endGamePhase() {
   this.isPaused = true;
+  this.messageText.setText("Task Complete!")
+  .setVisible(true);
 
-  this.stroopText.setText("Task Complete!").setColor("#ffffffff");
-  this.stroopText.setVisible(true);
-
-
+  this.stroopText.setVisible(false);
   this.time.delayedCall(2000, () => {
     window.location.href = "qualtrics.html";
   });
