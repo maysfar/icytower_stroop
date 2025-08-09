@@ -109,7 +109,7 @@ class GameScene extends Phaser.Scene {
     fontSize: "48px",
     fontStyle: "bold",
     color: "#fff"
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1000);
     this.stroopText.setBackgroundColor("#000000")
     this.score = 0;
   this.scoreText = this.add.text(sizes.width - 20, 20, "Score: 0", {
