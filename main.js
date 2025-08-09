@@ -19,13 +19,16 @@ const bgScrollSpeed = 1.2;
 const speedDown = 300
 const jumpVelocity = -400;
 const TRIAL_MS = 2000; //trial length
+const FAST_TARGET_Y =200 ;   // stroop text is on 50 so this is 150 bellow we good
+const FAST_DURATION = 500;   // the same delay between + and stim
+
 
 class GameScene extends Phaser.Scene {
   constructor() {
     super("scene-game");
     this.sessionIndex = 0;       // Current session number (starts at 0)
     this.trialIndex = 0;         // Current trial number within the session
-    this.trialsPerSession = 2;   // How many trials in each session
+    this.trialsPerSession = 6;   // How many trials in each session
     this.totalSessions = 6;      // How many sessions in total
     this.players
     this.cursor
@@ -326,6 +329,7 @@ setNewStroopTrial() {
   // Show fixation cross "+"
   this.stroopText.setText("+").setFontSize(48).setColor("#ffffff").setFontSize("64px");
   this.stroopText.setVisible(true);
+  this.fastForwardDownTo(FAST_TARGET_Y); 
 
   // Delay before showing Stroop stimulus
   this.time.delayedCall(500, () => {
@@ -498,6 +502,46 @@ resetTrialState({ forNewSession = false } = {}) {
     this.cleanup();
     this.CreateNewFloors();
   }
+}
+fastForwardDownTo(yTarget, duration = FAST_DURATION) {
+  const first = this.platforms.getChildren()[0];
+  if (!first) return;
+
+  const dyTotal = yTarget - first.y;  // only push DOWN
+  if (dyTotal <= 0) return;// so if its under the upper limit we're good we dont need to do anything
+
+  let last = 0;
+  this.tweens.addCounter({
+    from: 0,
+    to: dyTotal,
+    duration,
+    ease: 'Sine.easeOut',
+    onUpdate: (tw) => {
+      const v = tw.getValue();// current tween val
+      const d = v - last;    // the amount to move since the last frame
+      last = v;//last tw val
+
+      // move everything down
+      this.bg1.y += d;
+      this.bg2.y += d;
+      this.player.y += d;
+
+      this.platforms.children.iterate((s) => {
+        s.y += d;
+        s.body.y += d;
+        if (s.labelText) s.labelText.y += d;
+      });
+
+      this.floors.children.iterate((f) => {
+        f.y += d;
+        f.body.y += d;
+      });
+
+      // bg safety
+      if (this.bg1.y >= sizes.height) this.bg1.y = this.bg2.y - sizes.height;
+      if (this.bg2.y >= sizes.height) this.bg2.y = this.bg1.y - sizes.height;
+    }
+  });
 }
 
 }
