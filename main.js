@@ -18,6 +18,7 @@ const step_locations = {
 const bgScrollSpeed = 1.2;
 const speedDown = 300
 const jumpVelocity = -400;
+const TRIAL_MS = 2000; //trial length
 
 class GameScene extends Phaser.Scene {
   constructor() {
@@ -55,6 +56,8 @@ class GameScene extends Phaser.Scene {
     this.stepSound;
     this.superSound;
     this.hurryupSound;
+    this.trialDeadline = null;   
+    this.timeoutActive = false; 
   }
 
   preload() {
@@ -131,22 +134,13 @@ this.stroopText.setVisible(true);
 
 
 startGame() {
+  this.resetTrialState(); //TrialState is responsible for trial time limit
   this.isPaused = false;
   this.physics.resume();
 
   this.setNewStroopTrial();
 }
 
-pauseGame() {
-  this.isPaused = true;
-  this.physics.pause();
-
-}
-
-restartGame() {
-  this.isPaused = true;
-  this.scene.restart(); // reload the whole scene
-}
 
 update() {
 if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
@@ -155,6 +149,7 @@ if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
   if (text.includes("Session Complete")) {
     // End of session → start next
     this.sessionLabelOrder = this.permutations[this.sessionIndex];
+    this.resetTrialState({ forNewSession: true }); 
     this.startGame();
   } else if (text.includes("Press Space to start")) {
     // First trial or restart → start game
@@ -211,6 +206,8 @@ if (!this.reacted && !this.isPaused) {
 
 }
 handleResponse(step) {
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+  if (this.reacted) return;// safety check for double respose
   this.reacted = true;
   const rt = this.time.now - this.rtStartTime;
   this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
@@ -357,14 +354,19 @@ setNewStroopTrial() {
     });
     // Now we start measuring RT
     this.rtStartTime = this.time.now;
+    if (this.trialDeadline) { this.trialDeadline.remove(false); }
+    this.timeoutActive = false;
+    this.trialDeadline = this.time.delayedCall(TRIAL_MS, () => this.onTrialTimeout());
   });
 }
 
 
  showSessionBreak() {
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; } // 
   this.isPaused = true;
+  this.time.delayedCall(2000, () => {
   this.stroopText.setText("Session Complete\nPress Space to continue").setColor("#ffffffff");
-  this.stroopText.setVisible(true);
+  this.stroopText.setVisible(true);})
   this.superSound.play();
 
 }
@@ -382,6 +384,7 @@ endGamePhase() {
 }
 
 handleNonResponse() {
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
   console.log("⛔ Non-response detected first time");
   if (this.nonResponseHandled) return;
   this.nonResponseHandled = true;
@@ -392,15 +395,14 @@ handleNonResponse() {
 
 
 
-  this.time.delayedCall(500, () => {
+  this.time.delayedCall(1000, () => {
     this.trialIndex++;
-
+    this.feedbackText.setText("");
     if (this.trialIndex >= this.trialsPerSession) {
       this.sessionIndex++;
       this.trialIndex = 0;
 
       if (this.sessionIndex >= this.totalSessions) {
-        this.feedbackText.setText("");
         this.cleanup();
         this.CreateNewFloors();
         this.endGamePhase();
@@ -430,25 +432,21 @@ handleNonResponse() {
   });
 }
 
-cleanup(){ // come back here to remove the blue border line .
-    // 🧹 Clean up all current platforms
-    const platformsArray = []
-    this.platforms.children.iterate(step => {
-     platformsArray.push(step);
+cleanup(){ 
+    const toKill = []
+    this.platforms.children.iterate(platform => {
+     toKill.push(platform);
     });
-    platformsArray.forEach((step)=>{
+    this.floors.children.iterate((floor) => { toKill.push(floor); });
+    toKill.forEach((step)=>{
       if(step.labelText){
         step.labelText.destroy()
       }
       step.destroy();
     })    
     this.platforms.clear(true);
-
-    // 🧹 Clean up the floor if it exists
-    if (this.floor) {
-      this.floors.remove(this.floor, true, true);
-    }
-
+    this.floors.clear(true);
+    this.stroopText.setText("");
 }
 
 CreateNewFloors(){
@@ -468,6 +466,38 @@ CreateNewFloors(){
 
 }
 
+onTrialTimeout() {
+  // If already responded or we’re paused (session break etc.), do nothing.
+  if (this.reacted || this.isPaused || this.nonResponseHandled) return;
+
+  this.timeoutActive = true;
+  this.reacted = true; // lock input after timeout
+  this.feedbackText.setText("Too slow!");
+  this.hurryupSound.play();
+
+  // Remove all collision surfaces so gravity + scroll make the player fall
+  this.cleanup();
+
+  // Do NOT advance trial here; let update() detect off-screen and call handleNonResponse()
+}
+
+
+
+// put inside GameScene
+resetTrialState({ forNewSession = false } = {}) {
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+  this.timeoutActive = false;
+  this.nonResponseHandled = false;
+  this.reacted = false;
+  this.rtStartTime = null;
+  this.feedbackText.setText("");
+
+  if (forNewSession) {
+    // start from clean geometry
+    this.cleanup();
+    this.CreateNewFloors();
+  }
+}
 
 }
 
