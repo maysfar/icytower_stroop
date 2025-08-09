@@ -184,7 +184,7 @@ if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
   this.bg2.y = this.bg1.y - sizes.height;
   }
   
-if (!this.reacted && !this.isPaused) {
+if (!this.reacted && !this.isPaused && this.stroopText.text != "+") {
   if (Phaser.Input.Keyboard.JustDown(this.cursor.left)) {
     this.handleResponse(this.step1);
   } else if (Phaser.Input.Keyboard.JustDown(this.cursor.up)) {
@@ -193,11 +193,7 @@ if (!this.reacted && !this.isPaused) {
     this.handleResponse(this.step3);
   }
 }
-  if (!this.reacted && (left.isDown || right.isDown || up.isDown)) {
-  this.reacted = true;
-  const rt = this.time.now - this.rtStartTime;
-  this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
-}
+
   const firstPlatform = this.platforms.getChildren()[0];
   if (
     this.player.y - this.player.displayHeight / 2 > sizes.height ||
@@ -213,7 +209,7 @@ handleResponse(step) {
   if (this.reacted) return;// safety check for double respose
   this.reacted = true;
   const rt = this.time.now - this.rtStartTime;
-  this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
+  this.rtText.setText("RT: " + rt.toFixed(20) + " ms");
 
   // Play jump sound if you like
   this.stepSound.play();
