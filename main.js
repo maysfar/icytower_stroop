@@ -21,6 +21,14 @@ const jumpVelocity = -400;
 const TRIAL_MS = 2000; //trial length
 const FAST_TARGET_Y =200 ;   // stroop text is on 50 so this is 150 bellow we good
 const FAST_DURATION = 500;   // the same delay between + and stim
+const COLORS = ["red", "green", "blue"];        // ink colors
+const COLOR_HEX_MAP = {
+  red:   "#FF0000",
+  green: "#00FF00",
+  blue:  "#0000FF"
+};
+const COLOR_WORDS = ["RED", "GREEN", "BLUE"];   // text for congruent/incongruent
+const NEUTRAL_WORDS = ["APPLE", "BIKE", "HOUSE"]; // your neutral list (edit as you like)
 
 
 class GameScene extends Phaser.Scene {
@@ -42,8 +50,6 @@ class GameScene extends Phaser.Scene {
     this.step2
     this.step3
     this.isPaused = true;
-    this.stroopWords = ["apple", "bike", "Red", "Blue", "Green", "Yellow", "House"];
-    this.colors = ["#FF0000", "#00FF00", "#0000FF"];
     this.colorMap = {
       red: "R",
       green: "G",
@@ -329,12 +335,11 @@ setNewStroopTrial() {
 
   // Delay before showing Stroop stimulus
   this.time.delayedCall(500, () => {
-    const word = Phaser.Utils.Array.GetRandom(this.stroopWords);
-    const color = Phaser.Utils.Array.GetRandom(this.colors);
-    this.currentColor = color;
-    this.currentCorrectLetter = this.colorMap[color];
-
-    this.stroopText.setFontSize(48).setText(word).setColor(color);
+  const stim = this.pickStroopStimulus();
+  this.currentColor = stim.inkColor;
+  this.currentCorrectLetter = this.colorMap[stim.inkColor];
+  this.currentCondition = stim.condition; // handy if you log data
+  this.stroopText.setText(stim.wordText).setColor(COLOR_HEX_MAP[stim.inkColor]);
 
     const labels = this.sessionLabelOrder;
     let i = 0;
@@ -538,6 +543,34 @@ fastForwardDownTo(yTarget, duration = FAST_DURATION) {
       if (this.bg2.y >= sizes.height) this.bg2.y = this.bg1.y - sizes.height;
     }
   });
+}
+
+randomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+randomChoiceExcluding(arr, exclude) {
+  const filtered = arr.filter(x => x !== exclude);
+  return this.randomChoice(filtered);
+}
+
+//equal 1/3 probability
+pickStroopStimulus() {
+  const r = Math.random();
+  if (r < 1/3) {
+    //CONGRUENT
+    const ink = this.randomChoice(COLORS);
+    const word = ink.toUpperCase(); 
+    return {wordText: word, inkColor: ink, condition: "congruent"};
+  } else if (r < 2/3) {
+    //INCONGRUENT
+    const ink = this.randomChoice(COLORS);
+    const word = this.randomChoiceExcluding(COLOR_WORDS, ink.toUpperCase());
+    return { wordText: word, inkColor: ink, condition:"incongruent" };
+  } else {
+    //NEUTRAL
+    const word = this.randomChoice(NEUTRAL_WORDS);
+    const ink = this.randomChoice(COLORS);
+    return { wordText: word,inkColor: ink,condition:"neutral"};
+  }
 }
 
 }
