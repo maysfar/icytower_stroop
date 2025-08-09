@@ -40,7 +40,7 @@ class GameScene extends Phaser.Scene {
     this.step3
     this.isPaused = true;
     this.stroopWords = ["apple", "bike", "Red", "Blue", "Green", "Yellow", "House"];
-    this.colors = ["red", "green", "blue"];
+    this.colors = ["#FF0000", "#00FF00", "#0000FF"];
     this.colorMap = {
       red: "R",
       green: "G",
@@ -107,7 +107,7 @@ class GameScene extends Phaser.Scene {
     fontStyle: "bold",
     color: "#fff"
     }).setOrigin(0.5);
-
+    this.stroopText.setBackgroundColor("#000000")
     this.score = 0;
   this.scoreText = this.add.text(sizes.width - 20, 20, "Score: 0", {
     fontSize: "24px",
@@ -127,7 +127,7 @@ class GameScene extends Phaser.Scene {
   fontStyle: "bold"
 }).setOrigin(0.5);
 
-this.stroopText.setText("Press Space to start").setColor("#ffffffff");
+this.stroopText.setText("Press Space to start").setFontSize(48).setColor("#ffffffff");
 this.stroopText.setVisible(true);
 }
 
@@ -324,7 +324,7 @@ setNewStroopTrial() {
   this.rtStartTime = null;
 
   // Show fixation cross "+"
-  this.stroopText.setText("+").setColor("#ffffff").setFontSize("64px");
+  this.stroopText.setText("+").setFontSize(48).setColor("#ffffff").setFontSize("64px");
   this.stroopText.setVisible(true);
 
   // Delay before showing Stroop stimulus
@@ -334,7 +334,7 @@ setNewStroopTrial() {
     this.currentColor = color;
     this.currentCorrectLetter = this.colorMap[color];
 
-    this.stroopText.setText(word).setColor(color);
+    this.stroopText.setFontSize(48).setText(word).setColor(color);
 
     const labels = this.sessionLabelOrder;
     let i = 0;
@@ -364,8 +364,9 @@ setNewStroopTrial() {
  showSessionBreak() {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; } // 
   this.isPaused = true;
-  this.time.delayedCall(2000, () => {
-  this.stroopText.setText("Session Complete\nPress Space to continue").setColor("#ffffffff");
+  this.stroopText.setText("")
+  this.time.delayedCall(1000, () => {
+  this.stroopText.setText("Session Complete\nPress Space to continue").setFontSize(44).setColor("#ffffffff");
   this.stroopText.setVisible(true);})
   this.superSound.play();
 
@@ -374,7 +375,7 @@ setNewStroopTrial() {
 endGamePhase() {
   this.isPaused = true;
 
-  this.stroopText.setText("Task Complete!").setColor("#ffffffff");
+  this.stroopText.setText("Task Complete!").setFontSize(48).setColor("#ffffffff");
   this.stroopText.setVisible(true);
 
 
