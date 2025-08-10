@@ -12,7 +12,7 @@
         <center>
             <div>
                 <p>Classic Stroop!</p>
-                <canvas id="experiment" width=600px height=600px></canvas>
+                <canvas id="experiment" width=1000px height=700px></canvas>
             </div>
         </center>
 
@@ -179,7 +179,7 @@
     function setup(){
         window.canvas = document.getElementById("experiment");
         window.ctx = window.canvas.getContext("2d");
-        window.ctx.font = "16px Arial";
+        window.ctx.font = "bold 48px Arial";
         window.ctx.textAlign = "center";
     }
 
@@ -192,10 +192,10 @@
             "Press Y for yellow",
             "Press Spacebar to start"
         ];
-        const lineHeight = 30; 
+        const lineHeight = 50; 
         const startY = window.canvas.height/2 - (1.5 * lineHeight);
 
-        window.ctx.fillStyle = "#FFFFFFF";
+        window.ctx.fillStyle = "#FFFFFF";
         lines.forEach((text, i) => {
             window.ctx.fillText(
             text,
