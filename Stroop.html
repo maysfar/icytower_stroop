@@ -27,7 +27,7 @@
     var colorWords = ["red", "green", "blue","yellow", "purple", "brown", "black", "pink"];
     var neutralWords = ["bike", "window", "door", "book", "tree", "car", "dog", "cat"];
     var colors = ["#FF0000", "#00FF00", "#0000FF"];
-    var trials = 30;
+    var trials = 2;
     var sessions = 6;
     var sessionNum = 0;
     let results = [];
@@ -65,17 +65,25 @@
     function endSession(){
         clearCanvas();
         writeText("press Spacebar to start");
-        $(document).one('keydown', e => {
-            if (e.keyCode === 32){
-                if (sessionNum >= sessions) {
-                clearCanvas();
-                writeText("You finished tha task. Thank you!")
-                } else {
-                    runSession();
-                }
-            } 
-        });
+
+        $(document).off('keydown.waitForSpace');
+
+        $(document).on('keydown.waitForSpace', function onKey(e) {
+        const isSpace = (e.keyCode === 32);
+        if (!isSpace) return; 
+
+        $(document).off('keydown.waitForSpace');
+
+        if (sessionNum >= sessions) {
+         clearCanvas();
+        writeText("You finished the task. Thank you!");
+        } else {
+        runSession();
+        }
+    });
     }
+        
+        
 
     async function runTrial(durationMs) {
 
@@ -196,8 +204,14 @@
             );
         });
 
-        $(document).one('keydown', e => {
-            if (e.keyCode === 32) runSession();
+        $(document).off('keydown.waitForSpace');
+
+        $(document).on('keydown.waitForSpace', function onKey(e) {
+        const isSpace = (e.keyCode === 32);
+        if (!isSpace) return; 
+
+        $(document).off('keydown.waitForSpace');
+        runSession();
         });
         }
 
