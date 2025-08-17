@@ -110,7 +110,9 @@
             trialState.keyListener = function(e) {
                 cleanup();
                 const ReactionTime = performance.now() - TrialStart; //measures reaction time
-                resolve({ reason: 'keypress', key: e.key, rt:ReactionTime });
+
+                resolve({ reason: 'keypress', key: e.key, ReactionTime });
+
 
             };
             document.addEventListener('keydown', trialState.keyListener);
@@ -134,6 +136,7 @@
                 const isCorrect = 
                 (color === colors[0] && result.key === 'r') ||
                 (color === colors[1] && result.key === 'g') ||
+
                 (color === colors[2] && result.key === 'b');
 
                 const accuracy = isCorrect ?1:0;
@@ -157,6 +160,7 @@
                     outcome:"response",
                     timestamp: new Date().toISOString()
                 });
+
                 clearCanvas();
                 writeText(feedbackWord);
                 await new Promise(r => setTimeout(r, 500));
@@ -211,10 +215,10 @@
         const lines = [
             "Press G for green",
             "Press B for blue",
-            "Press Y for yellow",
+            "Press R for red",
             "Press Spacebar to start"
         ];
-        const lineHeight = 30; 
+        const lineHeight = 50; 
         const startY = window.canvas.height/2 - (1.5 * lineHeight);
 
         window.ctx.fillStyle = "#FFFFFFF";

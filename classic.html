@@ -12,7 +12,7 @@
         <center>
             <div>
                 <p>Classic Stroop!</p>
-                <canvas id="experiment" width=600px height=600px></canvas>
+                <canvas id="experiment" width=1000px height=700px></canvas>
             </div>
         </center>
 
@@ -24,22 +24,30 @@
         </style>
 
 <script>
-    // your existing globals
+    const participantId = localStorage.getItem("participantId");
     var colorWords = ["red", "green", "blue","yellow", "purple", "brown", "black", "pink"];
     var neutralWords = ["bike", "window", "door", "book", "tree", "car", "dog", "cat"];
     var colors = ["#FF0000", "#00FF00", "#0000FF"];
     var trials = 5;
     var sessions = 2;
     var sessionNum = 0;
+    let results = [];
+    const demoTrials = [{word: "red", color: colors[0]},
+     {word: "blue", color: colors[1]},
+     {word: "tree", color: colors[2]},
+     {word: "green", color: colors[0]},
+     {word: "door", color: colors[1]},
+     {word: "blue", color: colors[2]}] //determined trials for the demo (2 of each type)
 
     function getRandom(){
         let StimType = Math.floor(Math.random()*3),
-            StimulusWord, StimulusColor;
+            StimulusWord, StimulusColor, Stimulus;
 
         if (StimType === 0) {
             let idx = Math.floor(Math.random()*3);
             StimulusWord  = colorWords[idx];
             StimulusColor = colors[idx];
+            Stimulus = "congruent";
         }
         else if (StimType === 1) {
             let idx1 = Math.floor(Math.random()*colorWords.length),
@@ -49,22 +57,30 @@
             }
             StimulusWord  = colorWords[idx1];
             StimulusColor = colors[idx2];
+            Stimulus = "incongruent";
         }
         else {
             let idx1 = Math.floor(Math.random()*neutralWords.length),
                 idx2 = Math.floor(Math.random()*3);
             StimulusWord  = neutralWords[idx1];
             StimulusColor = colors[idx2];
+            Stimulus = "neutral";
         }
-        return [StimulusWord, StimulusColor];
+        return [StimulusWord, StimulusColor, Stimulus];
     }
 
-function endSession(){
-    clearCanvas();
-    setTimeout(() => {
-        writeText("press Spacebar to continue");
-        $(document).one('keydown', e => {
-            if (e.keyCode === 32){
+    function endSession(){
+        clearCanvas();
+        setTimeout(() => {
+            writeText("press Spacebar to continue");
+            $(document).off('keydown.waitForSpace');
+
+            $(document).on('keydown.waitForSpace', function onKey(e) {
+            const isSpace = (e.keyCode === 32);
+            if (!isSpace) return; 
+
+            $(document).off('keydown.waitForSpace');
+        
                 if (sessionNum >= sessions) {
                     clearCanvas();
                     writeText("You finished the task. Thank you!");
@@ -73,17 +89,16 @@ function endSession(){
                     }, 2000); // 2 seconds delay
                 } else {
                     runSession();
-                }
-            } 
-        });
-    }, 1500); // 1 second delay
-}
+                } 
+            });
+        }, 1500); // 1 second delay
+    }
 
 
     async function runTrial(durationMs) {
+
         const trialState = { timeoutId: null, keyListener: null };
-        const feedback = ["Right!", "Wrong!"];
-        const result = null;
+        const TrialStart = performance.now(); //timer
 
         function cleanup() {
             if (trialState.timeoutId !== null) {
@@ -96,6 +111,7 @@ function endSession(){
             }
         }
 
+        //if no response
         const timeoutPromise = new Promise(resolve => {
             trialState.timeoutId = setTimeout(() => {
                 cleanup();
@@ -103,10 +119,12 @@ function endSession(){
             }, durationMs);
         });
 
+        //if response
         const keyPromise = new Promise(resolve => {
             trialState.keyListener = function(e) {
                 cleanup();
-                resolve({ reason: 'keypress', key: e.key });
+                const ReactionTime = performance.now() - TrialStart; //measures reaction time
+                resolve({ reason: 'keypress', key: e.key, ReactionTime });
 
             };
             document.addEventListener('keydown', trialState.keyListener);
@@ -115,42 +133,117 @@ function endSession(){
         return await Promise.race([ timeoutPromise, keyPromise ]);
     }
 
-async function runSession() {
-    sessionNum++;
+    async function runSession() {
+        
+        sessionNum++;
+        for (let trialNum = 0; trialNum < trials; trialNum++) {
 
-    for (let trialNum = 0; trialNum < trials; trialNum++) {
-    clearCanvas();
+            clearCanvas();
+            const [word, color, type] = getRandom();
+            writeText(word, color);
 
-        const [word, color] = getRandom();
-        writeText(word, color);
-
-        const result = await runTrial(2000);
-        let feedbackWord;
-        if (result.reason === 'keypress') {
-             if (
-            (color === colors[0] && result.key === 'r') ||
-            (color === colors[1] && result.key === 'g') ||
-            (color === colors[2] && result.key === 'b')
-            ) {
-                feedbackWord = "Right!";
-                
+            const result = await runTrial(2000);
+            let feedbackWord;
+            if (result.reason === 'keypress') {
+                if (
+                (color === colors[0] && result.key === 'r') ||
+                (color === colors[1] && result.key === 'g') ||
+                (color === colors[2] && result.key === 'b')
+                ) {
+                    //right response
+                    feedbackWord = "Right!";
+                    results.push({ID: participantId, 
+                        session: sessionNum, 
+                        trial: trialNum, 
+                        stimulusType: type, 
+                        accuracy: 1, RT: 
+                        result.ReactionTime || 0}); //save results
+                    
+                } else {
+                    //wrong response
+                    feedbackWord = "Wrong!";
+                    results.push({ID: participantId, 
+                        session: sessionNum, 
+                        trial: trialNum, 
+                        stimulusType: type, 
+                        accuracy: 0, RT: 
+                        result.ReactionTime || 0}); //save results
+                }
+                clearCanvas();
+                writeText(feedbackWord);
+                await new Promise(r => setTimeout(r, 500));
+                clearCanvas();
+                writeText("+");
+                await new Promise(r => setTimeout(r, 500));
             } else {
-                feedbackWord = "Wrong!";
+                //no response
+                clearCanvas();
+                writeText("+");
+                await new Promise(r => setTimeout(r, 500));
+                results.push({ID: participantId, 
+                    session: sessionNum, 
+                    trial: trialNum, 
+                    stimulusType: type, 
+                    accuracy: 0, 
+                    RT: 0}); //save results
             }
+        }
+        endSession();
+    }
+
+    async function runDemoSession() {
+        for (let i = 3; i < demoTrials.length; i++) {
+            const { word, color } = demoTrials[i];
+            clearCanvas();
+            writeText(word, color);
+            const result = await runTrial(2000);
+
+            let feedbackWord;
+            if (result.reason === 'keypress') {
+            const correct =
+                (color === colors[0] && result.key === 'r') ||
+                (color === colors[1] && result.key === 'g') ||
+                (color === colors[2] && result.key === 'b');
+
+            feedbackWord = correct ? "Right!" : "Wrong!";
             clearCanvas();
             writeText(feedbackWord);
             await new Promise(r => setTimeout(r, 500));
             clearCanvas();
             writeText("+");
             await new Promise(r => setTimeout(r, 500));
-        } else {
+
+            } else {
             clearCanvas();
             writeText("+");
             await new Promise(r => setTimeout(r, 500));
+            }
         }
+        endDemoSession();
     }
-    endSession();
-}
+
+    function endDemoSession() {
+        clearCanvas();
+        const lines = ["Demo complete.", "Press Spacebar to start the real task"];
+        const lineHeight = 50; 
+        const startY = window.canvas.height/2 - (2 * lineHeight);
+
+        window.ctx.fillStyle = "#FFFFFF";
+        lines.forEach((text, i) => {
+            window.ctx.fillText(
+            text,
+            window.canvas.width/2,
+            startY + i * lineHeight
+            );
+        });
+
+        $(document).off('keydown.waitForSpace');
+        $(document).on('keydown.waitForSpace', function onKey(e) {
+            if (e.keyCode !== 32) return; 
+            $(document).off('keydown.waitForSpace');
+            runSession(); 
+        });
+        }
 
     function clearCanvas(){
         window.ctx.fillStyle = "#FFFFFF";
@@ -164,7 +257,7 @@ async function runSession() {
     function setup(){
         window.canvas = document.getElementById("experiment");
         window.ctx = window.canvas.getContext("2d");
-        window.ctx.font = "16px Arial";
+        window.ctx.font = "bold 48px Arial";
         window.ctx.textAlign = "center";
     }
 
@@ -174,13 +267,14 @@ async function runSession() {
         const lines = [
             "Press G for green",
             "Press B for blue",
-            "Press Y for yellow",
-            "Press Spacebar to start"
+            "Press R for red",
+            "You'll first do a short demo (6 trials)",
+            "Press Spacebar to start the demo"
         ];
-        const lineHeight = 30; 
-        const startY = window.canvas.height/2 - (1.5 * lineHeight);
+        const lineHeight = 50; 
+        const startY = window.canvas.height/2 - (2 * lineHeight);
 
-        window.ctx.fillStyle = "#FFFFFFF";
+        window.ctx.fillStyle = "#FFFFFF";
         lines.forEach((text, i) => {
             window.ctx.fillText(
             text,
@@ -189,8 +283,11 @@ async function runSession() {
             );
         });
 
-        $(document).one('keydown', e => {
-            if (e.keyCode === 32) runSession();
+        $(document).off('keydown.waitForSpace');
+        $(document).on('keydown.waitForSpace', function onKey(e) {
+        if (e.keyCode !== 32) return; 
+        $(document).off('keydown.waitForSpace');
+        runDemoSession();
         });
         }
 
