@@ -1,5 +1,6 @@
 import "./style.css";
 import Phaser from "phaser";
+import { exportCSV } from "./exportCSV.js";
 
 const sizes = {
   width: 1000,
@@ -111,6 +112,11 @@ class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
     this.physics.add.collider(this.player, this.floors);
 
+    //storing data
+    this.trialData = [];
+    this.currentTrial = null;
+    this.rtStartHR = null;
+
     this.stroopText = this.add.text(sizes.width / 2, 50, "", {
     fontSize: "48px",
     fontStyle: "bold",
@@ -214,8 +220,13 @@ handleResponse(step) {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
   if (this.reacted) return;// safety check for double respose
   this.reacted = true;
-  const rt = this.time.now - this.rtStartTime;
+  const rt = performance.now() - this.rtStartHR;
   this.rtText.setText("RT: " + rt.toFixed(20) + " ms");
+
+  if (this.currentTrial && this.currentTrial.outcome == "pending"){
+    this.currentTrial.response_label = step.label;
+    this.currentTrial.rt_ms = +rt.toFixed(1);
+  }
 
   // Play jump sound if you like
   this.stepSound.play();
@@ -297,11 +308,20 @@ handleStepLanding = (player, step) => {
     this.step2 = this.platforms.create(step_locations.x2, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     this.step3 = this.platforms.create(step_locations.x3, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     const jumpedLabel = step.label;
-if (jumpedLabel === this.currentCorrectLetter) {
-  this.score += 1;
-  this.scoreText.setText("Score: " + this.score);
-}
+    const correct = (jumpedLabel === this.currentCorrectLetter) ? 1:0;
+    if (correct) {
+      this.score += 1;
+      this.scoreText.setText("Score: " + this.score);
+    }
 
+    if( this.currentTrial){
+      this.currentTrial.accuracy = correct;
+      this.currentTrial.final_grade = correct ? 1 : 0; 
+      this.currentTrial.outcome = "respone";
+      this.currentTrial.response_label ??= jumpedLabel;// if not null fill this value
+      this.trialData.push(this.currentTrial);
+      this.currentTrial = null;
+    }
 // Move to the next trial or session
 this.trialIndex += 1;
 
@@ -341,7 +361,23 @@ setNewStroopTrial() {
   this.currentCondition = stim.condition; // handy if you log data
   this.stroopText.setText(stim.wordText).setColor(COLOR_HEX_MAP[stim.inkColor]);
 
-    const labels = this.sessionLabelOrder;
+  this.currentTrial = {
+    session: this.sessionIndex +1,
+    trial: this.trialIndex +1,
+    condition: stim.condition,
+    word: stim.wordText,
+    ink_color: stim.inkColor,
+    labels_order: this.sessionLabelOrder.join(""),
+    correct_label: this.currentCorrectLetter,
+    response_label: null,
+    rt_ms: null,
+    accuracy: 0,
+    final_grade: null,                  // +1 correct, 0 wrong, -1 no response
+    outcome: "pending",
+    timestamp: new Date().toISOString()
+  }
+    
+  const labels = this.sessionLabelOrder;
     let i = 0;
     this.platforms.children.iterate((step) => {
       if (step !== this.floor) {
@@ -358,7 +394,9 @@ setNewStroopTrial() {
       }
     });
     // Now we start measuring RT
-    this.rtStartTime = this.time.now;
+    this.rtStartTime = this.time.now;// phaser time 
+    this.rtStartHR = performance.now();// web time - higher resolotion
+
     if (this.trialDeadline) { this.trialDeadline.remove(false); }
     this.timeoutActive = false;
     this.trialDeadline = this.time.delayedCall(TRIAL_MS, () => this.onTrialTimeout());
@@ -383,7 +421,7 @@ endGamePhase() {
   this.stroopText.setText("Task Complete!").setFontSize(48).setColor("#ffffffff");
   this.stroopText.setVisible(true);
 
-
+  exportCSV(this.trialData, "gamified_stroop.csv");
   this.time.delayedCall(2000, () => {
     window.location.href = "qualtrics.html";
   });
@@ -400,7 +438,15 @@ handleNonResponse() {
   this.hurryupSound.play();
 
 
-
+  if(this.currentTrial && this.currentTrial.outcome === "pending"){
+    this.currentTrial.accuracy = 0;
+    this.currentTrial.final_grade = -1;
+    this.currentTrial.outcome = this.timeoutActive ? "no_response_timeout":"no_response";
+    this.currentTrial.rt_ms = this.timeoutActive ? TRIAL_MS : null;
+    this.currentTrial.response_label = "NR";
+    this.trialData.push(this.currentTrial);
+    this.currentTrial = null;
+  }
   this.time.delayedCall(1000, () => {
     this.trialIndex++;
     this.feedbackText.setText("");
