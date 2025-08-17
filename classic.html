@@ -152,12 +152,22 @@
                 ) {
                     //right response
                     feedbackWord = "Right!";
-                    results.push({ID: participantId, session: sessionNum, trial: trialNum, stimulusType: type, accuracy: 1, RT: result.ReactionTime || 0}); //save results
+                    results.push({ID: participantId, 
+                        session: sessionNum, 
+                        trial: trialNum, 
+                        stimulusType: type, 
+                        accuracy: 1, RT: 
+                        result.ReactionTime || 0}); //save results
                     
                 } else {
                     //wrong response
                     feedbackWord = "Wrong!";
-                    results.push({ID: participantId, session: sessionNum, trial: trialNum, stimulusType: type, accuracy: 0, RT: result.ReactionTime || 0}); //save results
+                    results.push({ID: participantId, 
+                        session: sessionNum, 
+                        trial: trialNum, 
+                        stimulusType: type, 
+                        accuracy: 0, RT: 
+                        result.ReactionTime || 0}); //save results
                 }
                 clearCanvas();
                 writeText(feedbackWord);
@@ -170,14 +180,19 @@
                 clearCanvas();
                 writeText("+");
                 await new Promise(r => setTimeout(r, 500));
-                results.push({ID: participantId, session: sessionNum, trial: trialNum, stimulusType: type, accuracy: 0, RT: 0}); //save results
+                results.push({ID: participantId, 
+                    session: sessionNum, 
+                    trial: trialNum, 
+                    stimulusType: type, 
+                    accuracy: 0, 
+                    RT: 0}); //save results
             }
         }
         endSession();
     }
 
     async function runDemoSession() {
-        for (let i = 0; i < demoTrials.length; i++) {
+        for (let i = 3; i < demoTrials.length; i++) {
             const { word, color } = demoTrials[i];
             clearCanvas();
             writeText(word, color);
