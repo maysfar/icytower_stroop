@@ -1,5 +1,6 @@
 import "./style.css";
 import Phaser from "phaser";
+import { exportCSV } from "./exportCSV.js";
 
 const sizes = {
   width: 1000,
@@ -18,13 +19,25 @@ const step_locations = {
 const bgScrollSpeed = 1.2;
 const speedDown = 300
 const jumpVelocity = -400;
+const TRIAL_MS = 2000; //trial length
+const FAST_TARGET_Y =200 ;   // stroop text is on 50 so this is 150 bellow we good
+const FAST_DURATION = 500;   // the same delay between + and stim
+const COLORS = ["red", "green", "blue"];        // ink colors
+const COLOR_HEX_MAP = {
+  red:   "#FF0000",
+  green: "#00FF00",
+  blue:  "#0000FF"
+};
+const COLOR_WORDS = ["RED", "GREEN", "BLUE"];   // text for congruent/incongruent
+const NEUTRAL_WORDS = ["APPLE", "BIKE", "HOUSE"]; // your neutral list (edit as you like)
+
 
 class GameScene extends Phaser.Scene {
   constructor() {
     super("scene-game");
     this.sessionIndex = 0;       // Current session number (starts at 0)
     this.trialIndex = 0;         // Current trial number within the session
-    this.trialsPerSession = 2;   // How many trials in each session
+    this.trialsPerSession = 6;   // How many trials in each session
     this.totalSessions = 6;      // How many sessions in total
     this.players
     this.cursor
@@ -38,8 +51,6 @@ class GameScene extends Phaser.Scene {
     this.step2
     this.step3
     this.isPaused = true;
-    this.stroopWords = ["apple", "bike", "Red", "Blue", "Green", "Yellow", "House"];
-    this.colors = ["red", "green", "blue"];
     this.colorMap = {
       red: "R",
       green: "G",
@@ -55,6 +66,8 @@ class GameScene extends Phaser.Scene {
     this.stepSound;
     this.superSound;
     this.hurryupSound;
+    this.trialDeadline = null;   
+    this.timeoutActive = false; 
   }
 
   preload() {
@@ -99,12 +112,17 @@ class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
     this.physics.add.collider(this.player, this.floors);
 
+    //storing data
+    this.trialData = [];
+    this.currentTrial = null;
+    this.rtStartHR = null;
+
     this.stroopText = this.add.text(sizes.width / 2, 50, "", {
     fontSize: "48px",
     fontStyle: "bold",
     color: "#fff"
-    }).setOrigin(0.5);
-
+    }).setOrigin(0.5).setDepth(1000);
+    this.stroopText.setBackgroundColor("#000000")
     this.score = 0;
   this.scoreText = this.add.text(sizes.width - 20, 20, "Score: 0", {
     fontSize: "24px",
@@ -124,29 +142,20 @@ class GameScene extends Phaser.Scene {
   fontStyle: "bold"
 }).setOrigin(0.5);
 
-this.stroopText.setText("Press Space to start").setColor("#ffffffff");
+this.stroopText.setText("Press Space to start").setFontSize(48).setColor("#ffffffff");
 this.stroopText.setVisible(true);
 }
 
 
 
 startGame() {
+  this.resetTrialState(); //TrialState is responsible for trial time limit
   this.isPaused = false;
   this.physics.resume();
 
   this.setNewStroopTrial();
 }
 
-pauseGame() {
-  this.isPaused = true;
-  this.physics.pause();
-
-}
-
-restartGame() {
-  this.isPaused = true;
-  this.scene.restart(); // reload the whole scene
-}
 
 update() {
 if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
@@ -155,6 +164,7 @@ if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
   if (text.includes("Session Complete")) {
     // End of session → start next
     this.sessionLabelOrder = this.permutations[this.sessionIndex];
+    this.resetTrialState({ forNewSession: true }); 
     this.startGame();
   } else if (text.includes("Press Space to start")) {
     // First trial or restart → start game
@@ -186,7 +196,7 @@ if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
   this.bg2.y = this.bg1.y - sizes.height;
   }
   
-if (!this.reacted && !this.isPaused) {
+if (!this.reacted && !this.isPaused && this.stroopText.text != "+") {
   if (Phaser.Input.Keyboard.JustDown(this.cursor.left)) {
     this.handleResponse(this.step1);
   } else if (Phaser.Input.Keyboard.JustDown(this.cursor.up)) {
@@ -195,11 +205,7 @@ if (!this.reacted && !this.isPaused) {
     this.handleResponse(this.step3);
   }
 }
-  if (!this.reacted && (left.isDown || right.isDown || up.isDown)) {
-  this.reacted = true;
-  const rt = this.time.now - this.rtStartTime;
-  this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
-}
+
   const firstPlatform = this.platforms.getChildren()[0];
   if (
     this.player.y - this.player.displayHeight / 2 > sizes.height ||
@@ -211,9 +217,16 @@ if (!this.reacted && !this.isPaused) {
 
 }
 handleResponse(step) {
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+  if (this.reacted) return;// safety check for double respose
   this.reacted = true;
-  const rt = this.time.now - this.rtStartTime;
-  this.rtText.setText("RT: " + rt.toFixed(0) + " ms");
+  const rt = performance.now() - this.rtStartHR;
+  this.rtText.setText("RT: " + rt.toFixed(20) + " ms");
+
+  if (this.currentTrial && this.currentTrial.outcome == "pending"){
+    this.currentTrial.response_label = step.label;
+    this.currentTrial.rt_ms = +rt.toFixed(1);
+  }
 
   // Play jump sound if you like
   this.stepSound.play();
@@ -295,11 +308,20 @@ handleStepLanding = (player, step) => {
     this.step2 = this.platforms.create(step_locations.x2, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     this.step3 = this.platforms.create(step_locations.x3, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     const jumpedLabel = step.label;
-if (jumpedLabel === this.currentCorrectLetter) {
-  this.score += 1;
-  this.scoreText.setText("Score: " + this.score);
-}
+    const correct = (jumpedLabel === this.currentCorrectLetter) ? 1:0;
+    if (correct) {
+      this.score += 1;
+      this.scoreText.setText("Score: " + this.score);
+    }
 
+    if( this.currentTrial){
+      this.currentTrial.accuracy = correct;
+      this.currentTrial.final_grade = correct ? 1 : 0; 
+      this.currentTrial.outcome = "respone";
+      this.currentTrial.response_label ??= jumpedLabel;// if not null fill this value
+      this.trialData.push(this.currentTrial);
+      this.currentTrial = null;
+    }
 // Move to the next trial or session
 this.trialIndex += 1;
 
@@ -327,19 +349,35 @@ setNewStroopTrial() {
   this.rtStartTime = null;
 
   // Show fixation cross "+"
-  this.stroopText.setText("+").setColor("#ffffff").setFontSize("64px");
+  this.stroopText.setText("+").setFontSize(48).setColor("#ffffff").setFontSize("64px");
   this.stroopText.setVisible(true);
+  this.fastForwardDownTo(FAST_TARGET_Y); 
 
   // Delay before showing Stroop stimulus
   this.time.delayedCall(500, () => {
-    const word = Phaser.Utils.Array.GetRandom(this.stroopWords);
-    const color = Phaser.Utils.Array.GetRandom(this.colors);
-    this.currentColor = color;
-    this.currentCorrectLetter = this.colorMap[color];
+  const stim = this.pickStroopStimulus();
+  this.currentColor = stim.inkColor;
+  this.currentCorrectLetter = this.colorMap[stim.inkColor];
+  this.currentCondition = stim.condition; // handy if you log data
+  this.stroopText.setText(stim.wordText).setColor(COLOR_HEX_MAP[stim.inkColor]);
 
-    this.stroopText.setText(word).setColor(color);
-
-    const labels = this.sessionLabelOrder;
+  this.currentTrial = {
+    session: this.sessionIndex +1,
+    trial: this.trialIndex +1,
+    condition: stim.condition,
+    word: stim.wordText,
+    ink_color: stim.inkColor,
+    labels_order: this.sessionLabelOrder.join(""),
+    correct_label: this.currentCorrectLetter,
+    response_label: null,
+    rt_ms: null,
+    accuracy: 0,
+    final_grade: null,                  // +1 correct, 0 wrong, -1 no response
+    outcome: "pending",
+    timestamp: new Date().toISOString()
+  }
+    
+  const labels = this.sessionLabelOrder;
     let i = 0;
     this.platforms.children.iterate((step) => {
       if (step !== this.floor) {
@@ -356,15 +394,23 @@ setNewStroopTrial() {
       }
     });
     // Now we start measuring RT
-    this.rtStartTime = this.time.now;
+    this.rtStartTime = this.time.now;// phaser time 
+    this.rtStartHR = performance.now();// web time - higher resolotion
+
+    if (this.trialDeadline) { this.trialDeadline.remove(false); }
+    this.timeoutActive = false;
+    this.trialDeadline = this.time.delayedCall(TRIAL_MS, () => this.onTrialTimeout());
   });
 }
 
 
  showSessionBreak() {
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; } // 
   this.isPaused = true;
-  this.stroopText.setText("Session Complete\nPress Space to continue").setColor("#ffffffff");
-  this.stroopText.setVisible(true);
+  this.stroopText.setText("")
+  this.time.delayedCall(1000, () => {
+  this.stroopText.setText("Session Complete\nPress Space to continue").setFontSize(44).setColor("#ffffffff");
+  this.stroopText.setVisible(true);})
   this.superSound.play();
 
 }
@@ -372,16 +418,17 @@ setNewStroopTrial() {
 endGamePhase() {
   this.isPaused = true;
 
-  this.stroopText.setText("Task Complete!").setColor("#ffffffff");
+  this.stroopText.setText("Task Complete!").setFontSize(48).setColor("#ffffffff");
   this.stroopText.setVisible(true);
 
-
+  exportCSV(this.trialData, "gamified_stroop.csv");
   this.time.delayedCall(2000, () => {
     window.location.href = "qualtrics.html";
   });
 }
 
 handleNonResponse() {
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
   console.log("⛔ Non-response detected first time");
   if (this.nonResponseHandled) return;
   this.nonResponseHandled = true;
@@ -391,16 +438,23 @@ handleNonResponse() {
   this.hurryupSound.play();
 
 
-
-  this.time.delayedCall(500, () => {
+  if(this.currentTrial && this.currentTrial.outcome === "pending"){
+    this.currentTrial.accuracy = 0;
+    this.currentTrial.final_grade = -1;
+    this.currentTrial.outcome = this.timeoutActive ? "no_response_timeout":"no_response";
+    this.currentTrial.rt_ms = this.timeoutActive ? TRIAL_MS : null;
+    this.currentTrial.response_label = "NR";
+    this.trialData.push(this.currentTrial);
+    this.currentTrial = null;
+  }
+  this.time.delayedCall(1000, () => {
     this.trialIndex++;
-
+    this.feedbackText.setText("");
     if (this.trialIndex >= this.trialsPerSession) {
       this.sessionIndex++;
       this.trialIndex = 0;
 
       if (this.sessionIndex >= this.totalSessions) {
-        this.feedbackText.setText("");
         this.cleanup();
         this.CreateNewFloors();
         this.endGamePhase();
@@ -430,25 +484,21 @@ handleNonResponse() {
   });
 }
 
-cleanup(){ // come back here to remove the blue border line .
-    // 🧹 Clean up all current platforms
-    const platformsArray = []
-    this.platforms.children.iterate(step => {
-     platformsArray.push(step);
+cleanup(){ 
+    const toKill = []
+    this.platforms.children.iterate(platform => {
+     toKill.push(platform);
     });
-    platformsArray.forEach((step)=>{
+    this.floors.children.iterate((floor) => { toKill.push(floor); });
+    toKill.forEach((step)=>{
       if(step.labelText){
         step.labelText.destroy()
       }
       step.destroy();
     })    
     this.platforms.clear(true);
-
-    // 🧹 Clean up the floor if it exists
-    if (this.floor) {
-      this.floors.remove(this.floor, true, true);
-    }
-
+    this.floors.clear(true);
+    this.stroopText.setText("");
 }
 
 CreateNewFloors(){
@@ -468,6 +518,106 @@ CreateNewFloors(){
 
 }
 
+onTrialTimeout() {
+  // If already responded or we’re paused (session break etc.), do nothing.
+  if (this.reacted || this.isPaused || this.nonResponseHandled) return;
+
+  this.timeoutActive = true;
+  this.reacted = true; // lock input after timeout
+  this.feedbackText.setText("Too slow!");
+  this.hurryupSound.play();
+
+  // Remove all collision surfaces so gravity + scroll make the player fall
+  this.cleanup();
+
+  // Do NOT advance trial here; let update() detect off-screen and call handleNonResponse()
+}
+
+
+
+// put inside GameScene
+resetTrialState({ forNewSession = false } = {}) {
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+  this.timeoutActive = false;
+  this.nonResponseHandled = false;
+  this.reacted = false;
+  this.rtStartTime = null;
+  this.feedbackText.setText("");
+
+  if (forNewSession) {
+    // start from clean geometry
+    this.cleanup();
+    this.CreateNewFloors();
+  }
+}
+fastForwardDownTo(yTarget, duration = FAST_DURATION) {
+  const first = this.platforms.getChildren()[0];
+  if (!first) return;
+
+  const dyTotal = yTarget - first.y;  // only push DOWN
+  if (dyTotal <= 0) return;// so if its under the upper limit we're good we dont need to do anything
+
+  let last = 0;
+  this.tweens.addCounter({
+    from: 0,
+    to: dyTotal,
+    duration,
+    ease: 'Sine.easeOut',
+    onUpdate: (tw) => {
+      const v = tw.getValue();// current tween val
+      const d = v - last;    // the amount to move since the last frame
+      last = v;//last tw val
+
+      // move everything down
+      this.bg1.y += d;
+      this.bg2.y += d;
+      this.player.y += d;
+
+      this.platforms.children.iterate((s) => {
+        s.y += d;
+        s.body.y += d;
+        if (s.labelText) s.labelText.y += d;
+      });
+
+      this.floors.children.iterate((f) => {
+        f.y += d;
+        f.body.y += d;
+      });
+
+      // bg safety
+      if (this.bg1.y >= sizes.height) this.bg1.y = this.bg2.y - sizes.height;
+      if (this.bg2.y >= sizes.height) this.bg2.y = this.bg1.y - sizes.height;
+    }
+  });
+}
+
+randomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+randomChoiceExcluding(arr, exclude) {
+  const filtered = arr.filter(x => x !== exclude);
+  return this.randomChoice(filtered);
+}
+
+//equal 1/3 probability
+pickStroopStimulus() {
+  const r = Math.random();
+  if (r < 1/3) {
+    //CONGRUENT
+    const ink = this.randomChoice(COLORS);
+    const word = ink.toUpperCase(); 
+    return {wordText: word, inkColor: ink, condition: "congruent"};
+  } else if (r < 2/3) {
+    //INCONGRUENT
+    const ink = this.randomChoice(COLORS);
+    const word = this.randomChoiceExcluding(COLOR_WORDS, ink.toUpperCase());
+    return { wordText: word, inkColor: ink, condition:"incongruent" };
+  } else {
+    //NEUTRAL
+    const word = this.randomChoice(NEUTRAL_WORDS);
+    const ink = this.randomChoice(COLORS);
+    return { wordText: word,inkColor: ink,condition:"neutral"};
+  }
+}
 
 }
 
