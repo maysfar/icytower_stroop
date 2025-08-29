@@ -192,34 +192,108 @@
     }
 
     async function runDemoSession() {
+        for (let i = 0; i < 3; i++){
+            const { word, color } = demoTrials[i];
+            const txt = "In this example, the color of the word is: " + colorWords[i] + ".";
+            const instruc = "Therefore, press " + colorWords[i][0].toUpperCase() + " for the right response.";
+            const lines = [txt, instruc, word];
+            const lineColor = ["#FFFFFF", "#FFFFFF", color];
+            const lineFont = ["bold 40px Arial", "bold 40px Arial", "bold 48px Arial"]
+            const lineHeight = 50; 
+            const startY = window.canvas.height/2 - (2 * lineHeight);
+            const expectedKey =
+                color === colors[0] ? "r" :
+                color === colors[1] ? "g" :
+                color === colors[2] ? "b" : "" ;
+            
+            let correct = false;
+
+            while (!correct){
+                clearCanvas();
+                lines.forEach((text, j) => {
+                    window.ctx.fillStyle = lineColor[j]
+                    window.ctx.font = lineFont[j];
+                    window.ctx.textAlign = "center";
+                    window.ctx.fillText(
+                    text,
+                    window.canvas.width/2,
+                    startY + j * lineHeight
+                    );
+                });
+                const result = await runTrial(15000);
+
+                if (result.reason !== 'keypress') {
+                    clearCanvas();
+                    writeText( "Try again.");
+                    await new Promise(r => setTimeout(r, 1000));
+                    clearCanvas();
+                    writeText("+");
+                    await new Promise(r => setTimeout(r, 500));
+                    continue; 
+                }
+
+                const key = (result.key || "").toLowerCase();
+                correct = key === expectedKey;
+
+                if (!correct){
+                    clearCanvas();
+                    writeText( "wrong answer, Try again.");
+                    await new Promise(r => setTimeout(r, 2000));
+                } else {
+                    clearCanvas();
+                    writeText( "Right!");
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+
+                clearCanvas();
+                writeText("+");
+                await new Promise(r => setTimeout(r, 500));
+            }  
+        }
+
         for (let i = 3; i < demoTrials.length; i++) {
             const { word, color } = demoTrials[i];
-            clearCanvas();
-            writeText(word, color);
-            const result = await runTrial(2000);
+            const expectedKey =
+                color === colors[0] ? "r" :
+                color === colors[1] ? "g" :
+                color === colors[2] ? "b" : "" ;
+            
+            let correct = false;
 
-            let feedbackWord;
-            if (result.reason === 'keypress') {
-            const correct =
-                (color === colors[0] && result.key === 'r') ||
-                (color === colors[1] && result.key === 'g') ||
-                (color === colors[2] && result.key === 'b');
+            while (!correct){
+                clearCanvas();
+                writeText(word, color);
+                const result = await runTrial(2000);
 
-            feedbackWord = correct ? "Right!" : "Wrong!";
-            clearCanvas();
-            writeText(feedbackWord);
-            await new Promise(r => setTimeout(r, 500));
-            clearCanvas();
-            writeText("+");
-            await new Promise(r => setTimeout(r, 500));
+                if (result.reason !== 'keypress') {
+                    clearCanvas();
+                    writeText( "Try again.");
+                    await new Promise(r => setTimeout(r, 1000));
+                    clearCanvas();
+                    writeText("+");
+                    await new Promise(r => setTimeout(r, 500));
+                    continue; 
+                }
 
-            } else {
-            clearCanvas();
-            writeText("+");
-            await new Promise(r => setTimeout(r, 500));
-            }
-        }
+                const key = (result.key || "").toLowerCase();
+                correct = key === expectedKey;
+
+                if (!correct){
+                    clearCanvas();
+                    writeText( "wrong answer, Try again.");
+                    await new Promise(r => setTimeout(r, 2000));
+                } else {
+                    clearCanvas();
+                    writeText( "Right!");
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+
+                clearCanvas();
+                writeText("+");
+                await new Promise(r => setTimeout(r, 500));
+            } 
         endDemoSession();
+        }
     }
 
     function endDemoSession() {
