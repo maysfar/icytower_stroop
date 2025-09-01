@@ -23,12 +23,13 @@
             }
         </style>
 
-<script>
+<script  type="module">
+    import { exportCSV } from "./exportCSV.js";
     const participantId = localStorage.getItem("participantId");
     var colorWords = ["red", "green", "blue","yellow", "purple", "brown", "black", "pink"];
     var neutralWords = ["bike", "window", "door", "book", "tree", "car", "dog", "cat"];
     var colors = ["#FF0000", "#00FF00", "#0000FF"];
-    var trials = 5;
+    var trials = 2;
     var sessions = 2;
     var sessionNum = 0;
     let results = [];
@@ -82,6 +83,7 @@
             $(document).off('keydown.waitForSpace');
         
                 if (sessionNum >= sessions) {
+                    exportCSV(results, "classic_stroop.csv");
                     clearCanvas();
                     writeText("You finished the task. Thank you!");
                     setTimeout(() => {
