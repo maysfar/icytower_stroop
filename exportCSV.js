@@ -20,7 +20,7 @@ export function exportCSV(trialData, filename = "stroop_results.csv") {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "stroop_results.csv";
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

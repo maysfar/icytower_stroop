@@ -29,6 +29,8 @@
     var colorWords = ["red", "green", "blue","yellow", "purple", "brown", "black", "pink"];
     var neutralWords = ["bike", "window", "door", "book", "tree", "car", "dog", "cat"];
     var colors = ["#FF0000", "#00FF00", "#0000FF"];
+    const colorMap = { "#FF0000":"R", "#00FF00":"G", "#0000FF":"B" };
+    const labelsOrder = "RGB";
     var trials = 2;
     var sessions = 2;
     var sessionNum = 0;
@@ -147,30 +149,35 @@
             const result = await runTrial(2000);
             let feedbackWord;
             if (result.reason === 'keypress') {
-                if (
-                (color === colors[0] && result.key === 'r') ||
-                (color === colors[1] && result.key === 'g') ||
-                (color === colors[2] && result.key === 'b')
-                ) {
-                    //right response
-                    feedbackWord = "Right!";
-                    results.push({ID: participantId, 
-                        session: sessionNum, 
-                        trial: trialNum, 
-                        stimulusType: type, 
-                        accuracy: 1, RT: 
-                        result.ReactionTime || 0}); //save results
-                    
-                } else {
-                    //wrong response
-                    feedbackWord = "Wrong!";
-                    results.push({ID: participantId, 
-                        session: sessionNum, 
-                        trial: trialNum, 
-                        stimulusType: type, 
-                        accuracy: 0, RT: 
-                        result.ReactionTime || 0}); //save results
-                }
+                const pressed = (result.key || "").toUpperCase();
+                const expectedKey =
+                    (color === colors[0]) ? "R" :
+                    (color === colors[1]) ? "G" :
+                    (color === colors[2]) ? "B" : "";
+                
+                const isCorrect = (pressed === expectedKey);
+                
+                feedbackWord = isCorrect ? "Right!" : "Wrong!";
+                
+                results.push({
+                    ID: participantId,
+                    session: sessionNum,
+                    trial: trialNum + 1,             
+                    condition: type,                 
+                    word: word.toUpperCase(),
+                    ink_color:  (color === colors[0]) ? "red" :
+                                (color === colors[1]) ? "green" :
+                                (color === colors[2]) ? "blue" : "",
+                    labels_order: "RGB",
+                    correct_label: expectedKey,
+                    response_label: pressed,
+                    rt_ms: Math.round(result.ReactionTime || 0),
+                    accuracy: isCorrect ? 1 : 0,
+                    final_grade: isCorrect ? 1 : 0,
+                    outcome: "response",
+                    timestamp: new Date().toISOString()
+                });
+                
                 clearCanvas();
                 writeText(feedbackWord);
                 await new Promise(r => setTimeout(r, 500));
@@ -178,16 +185,30 @@
                 writeText("+");
                 await new Promise(r => setTimeout(r, 500));
             } else {
-                //no response
+                    results.push({
+                        ID: participantId,
+                        session: sessionNum,
+                        trial: trialNum + 1,
+                        condition: type,
+                        word: word.toUpperCase(),
+                        ink_color:  (color === colors[0]) ? "red" :
+                                    (color === colors[1]) ? "green" :
+                                    (color === colors[2]) ? "blue" : "",
+                        labels_order: "RGB",
+                        correct_label:
+                                    (color === colors[0]) ? "R" :
+                                    (color === colors[1]) ? "G" :
+                                    (color === colors[2]) ? "B" : "",
+                        response_label: "NR",
+                        rt_ms: null,
+                        accuracy: 0,
+                        final_grade: -1,
+                        outcome: "no_response_timeout",
+                        timestamp: new Date().toISOString()
+                    });
                 clearCanvas();
                 writeText("+");
                 await new Promise(r => setTimeout(r, 500));
-                results.push({ID: participantId, 
-                    session: sessionNum, 
-                    trial: trialNum, 
-                    stimulusType: type, 
-                    accuracy: 0, 
-                    RT: 0}); //save results
             }
         }
         endSession();
