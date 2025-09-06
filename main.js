@@ -30,6 +30,16 @@ const COLOR_HEX_MAP = {
 };
 const COLOR_WORDS = ["RED", "GREEN", "BLUE"];   // text for congruent/incongruent
 const NEUTRAL_WORDS = ["APPLE", "BIKE", "HOUSE"]; // your neutral list (edit as you like)
+const colors = ["#FF0000", "#00FF00", "#0000FF"];
+const demoTrials = [
+  { word: "red",  color: colors[0] },
+  { word: "blue", color: colors[1] },
+  { word: "tree", color: colors[2] },
+  { word: "green",color: colors[0] },
+  { word: "door", color: colors[1] },
+  { word: "blue", color: colors[2] },
+];
+
 
 
 class GameScene extends Phaser.Scene {
@@ -68,6 +78,14 @@ class GameScene extends Phaser.Scene {
     this.hurryupSound;
     this.trialDeadline = null;   
     this.timeoutActive = false; 
+    // --- DEMO (Step 1) ---
+    this.inDemo = true;               // start in demo mode
+    this.demoIndex = 0;               // single demo trial
+    this.demoTimeoutMs = 15000;       // longer read time
+    this.demoCurrent = null;
+    this.demoTrials = demoTrials
+ 
+
   }
 
   preload() {
@@ -142,35 +160,72 @@ class GameScene extends Phaser.Scene {
   fontStyle: "bold"
 }).setOrigin(0.5);
 
+// existing stroopText...
 this.stroopText.setText("Press Space to start").setFontSize(48).setColor("#ffffffff");
 this.stroopText.setVisible(true);
+
+// NEW: introText (wrapped, anchored to top)
+this.introText = this.add.text(sizes.width / 2, 8, "", {
+  fontFamily: "Arial",
+  fontSize: "28px",
+  fontStyle: "bold",
+  color: "#ffffff",
+  align: "center",
+  wordWrap: { width: sizes.width * 0.9 }
+})
+.setOrigin(0.5, 0)          // top-center, so it won’t get clipped
+.setDepth(1001)
+.setBackgroundColor("#000000")
+.setPadding(8, 8, 8, 8)
+.setVisible(false);
+
+// show the intro now
+this.showDemoIntro();
+
 }
 
 
 
 startGame() {
-  this.resetTrialState(); //TrialState is responsible for trial time limit
+  this.inDemo = false;
+  this.rtText.setVisible(true).setText("RT: -");
+  this.introText?.setVisible(false);   // NEW
+    this.stroopText
+    .setVisible(true)
+    .setText("")
+    .setOrigin(0.5, 0.5)
+    .setPosition(sizes.width / 2, 50)
+    .setBackgroundColor("#000000")
+    .setFontSize(48)
+    .setColor("#ffffffff")
+    .setStyle({ wordWrap: { width: 0 } });
+  this.feedbackText.setText("").setVisible(true);
+  this.rtText.setText("RT: -");
+  this.resetTrialState();
   this.isPaused = false;
   this.physics.resume();
-
   this.setNewStroopTrial();
 }
 
 
-update() {
-if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-  const text = this.stroopText.text;
 
-  if (text.includes("Session Complete")) {
-    // End of session → start next
-    this.sessionLabelOrder = this.permutations[this.sessionIndex];
-    this.resetTrialState({ forNewSession: true }); 
-    this.startGame();
-  } else if (text.includes("Press Space to start")) {
-    // First trial or restart → start game
-    this.startGame();  
+update() {
+    // --- handle Space while paused ---
+  if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+    const text = this.stroopText.text;
+
+    if (text.includes("Session Complete")) {
+      // End of session → start next
+      this.sessionLabelOrder = this.permutations[this.sessionIndex];
+      this.resetTrialState({ forNewSession: true });
+      this.startGame();
+
+    } else if (text.includes("Press Space to start")) {
+      // First screen → demo first, then game
+      if (this.inDemo) this.startDemo();
+      else this.startGame();
+    }
   }
-}
   if (this.isPaused) return;
   const { left, right, up } = this.cursor;
   this.bg1.y += bgScrollSpeed;
@@ -206,34 +261,56 @@ if (!this.reacted && !this.isPaused && this.stroopText.text != "+") {
   }
 }
 
-  const firstPlatform = this.platforms.getChildren()[0];
-  if (
-    this.player.y - this.player.displayHeight / 2 > sizes.height ||
-    (firstPlatform && firstPlatform.y > sizes.height)
-  ) {
+const firstPlatform = this.platforms.getChildren()[0];
+if (
+  this.player.y - this.player.displayHeight / 2 > sizes.height ||
+  (firstPlatform && firstPlatform.y > sizes.height)
+) {
+  if (this.inDemo) {
+    // Demo: retry same item; don't advance real flow
+    if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+    this.cleanup();
+    this.CreateNewFloors();
+    this.reacted = false;
+    this.isPaused = false;
+
+    this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
+    this.time.delayedCall(600, () => {
+      this.feedbackText.setVisible(false);
+      this.runDemoTrial();   // replay same demo item
+    });
+  } else {
+    // Real task behavior
     this.isPaused = true;
     this.handleNonResponse();
   }
+}
+
 
 }
+
 handleResponse(step) {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
-  if (this.reacted) return;// safety check for double respose
+  if (this.reacted) return;
   this.reacted = true;
-  const rt = performance.now() - this.rtStartHR;
-  this.rtText.setText("RT: " + rt.toFixed(20) + " ms");
 
-  if (this.currentTrial && this.currentTrial.outcome == "pending"){
+  //  Only show/record RT in the real task
+  if (!this.inDemo && this.rtStartHR != null) {
+    const rt = performance.now() - this.rtStartHR;
+    this.rtText.setText("RT: " + rt.toFixed(20) + " ms");
+    if (this.currentTrial && this.currentTrial.outcome === "pending") {
+      this.currentTrial.response_label = step.label;
+      this.currentTrial.rt_ms = +rt.toFixed(1);
+    }
+  } else if (this.currentTrial && this.currentTrial.outcome === "pending") {
+    // Demo: record choice only, no RT
     this.currentTrial.response_label = step.label;
-    this.currentTrial.rt_ms = +rt.toFixed(1);
   }
 
-  // Play jump sound if you like
   this.stepSound.play();
-
-  // Animate arc jump
   this.arcJumpToStep(step);
 }
+
 
 arcJumpToStep(step) {
   const startX = this.player.x;
@@ -309,6 +386,38 @@ handleStepLanding = (player, step) => {
     this.step3 = this.platforms.create(step_locations.x3, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     const jumpedLabel = step.label;
     const correct = (jumpedLabel === this.currentCorrectLetter) ? 1:0;
+    // --- DEMO branch: finish or retry, don't advance real game ---
+    if (this.inDemo) {
+    // if you ever add a demo timer later, clear it
+      if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+
+        if (correct) {
+          this.feedbackText.setText("Right!").setStyle({ color: "#ffffff" }).setVisible(true);
+          this.time.delayedCall(800, () => {
+          this.feedbackText.setVisible(false);
+          this.demoIndex += 1; // only one demo trial for now
+          if (this.demoIndex >= this.demoTrials.length) {
+            this.inDemo = false;              // demo is over
+            this.isPaused = true;             // pause and show continue prompt
+            this.stroopText
+            .setText("Demo complete\nPress Space to start")
+            .setFontSize(44)
+            .setColor("#ffffffff")
+            .setVisible(true);
+          } else { this.runDemoTrial(); } // show next demo trial (if you add more later)
+
+            });
+          } else {
+          this.feedbackText.setText("Wrong! Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
+          this.hurryupSound.play();
+          this.time.delayedCall(1000, () => {
+          this.feedbackText.setVisible(false);
+          this.runDemoTrial();              // show the same demo stimulus again
+          });
+          }
+          return; 
+          }
+
     if (correct) {
       this.score += 1;
       this.scoreText.setText("Score: " + this.score);
@@ -317,7 +426,7 @@ handleStepLanding = (player, step) => {
     if( this.currentTrial){
       this.currentTrial.accuracy = correct;
       this.currentTrial.final_grade = correct ? 1 : 0; 
-      this.currentTrial.outcome = "respone";
+      this.currentTrial.outcome = "response";
       this.currentTrial.response_label ??= jumpedLabel;// if not null fill this value
       this.trialData.push(this.currentTrial);
       this.currentTrial = null;
@@ -618,6 +727,104 @@ pickStroopStimulus() {
     return { wordText: word,inkColor: ink,condition:"neutral"};
   }
 }
+
+showDemoIntro() {
+if (!this.introText) return;
+this.introText.setText(
+
+  "• Left Arrow  = Left platform\n" +
+  "• Up Arrow    = Middle platform\n" +
+  "• Right Arrow = Right platform\n\n" +
+  "Color mapping: R = Red, G = Green, B = Blue.\n\n" +
+  "You'll first do a short demo (6 trials)\n\n" +
+  "Press Space to start the demo."
+).setVisible(true);
+
+}
+
+startDemo() {
+  this.rtText.setVisible(false);
+  this.introText?.setVisible(false);   // hide intro
+  this.inDemo = true;                   // we are in demo mode
+  this.resetTrialState({ forNewSession: true });
+  this.isPaused = false;
+  this.physics.resume();
+  this.runDemoTrial();                  // show a single demo stimulus
+}
+
+runDemoTrial() {
+  this.reacted = false;      // allow input for this demo trial
+  this.rtStartTime = null;
+
+  // fixation
+  this.stroopText
+    .setOrigin(0.5, 0.5)
+    .setPosition(sizes.width / 2, 50)
+    .setText("+")
+    .setColor("#ffffff")
+    .setFontSize(64)
+    .setVisible(true);
+
+  this.fastForwardDownTo(FAST_TARGET_Y);
+
+  // after 500ms show the current classic demo item
+  this.time.delayedCall(500, () => {
+    const t = demoTrials[this.demoIndex] || demoTrials[0];  // use current index
+
+    // hex -> name -> expected label "R/G/B" (no extra maps needed)
+    const nameFromHex = Object.keys(COLOR_HEX_MAP)
+      .find(n => COLOR_HEX_MAP[n] === t.color);
+    this.currentCorrectLetter = this.colorMap[nameFromHex];
+
+    // draw the word in its hex ink color
+    this.stroopText
+      .setText(t.word.toUpperCase())
+      .setColor(t.color)
+      .setFontSize(48);
+
+    // put labels on steps using current order (RGB)
+    const labels = this.sessionLabelOrder;
+    let i = 0;
+    this.platforms.children.iterate((step) => {
+      if (step !== this.floor) {
+        if (!step.labelText) {
+          step.labelText = this.add.text(0, 0, "", { fontSize: "32px", color: "#fff" }).setOrigin(0.5);
+        }
+        step.label = labels[i];
+        step.labelText.setText(step.label);
+        step.labelText.setPosition(step.x, step.y - 30);
+        i++;
+      }
+    });
+    // Guided hint for the first 3 demo items
+    if (this.demoIndex < 3) {
+      const key = this.currentCorrectLetter === "R" ? "Left Arrow" :
+                  this.currentCorrectLetter === "G" ? "Up Arrow" : "Right Arrow";
+      this.feedbackText
+        .setText(`Example: ink is ${nameFromHex}. Press ${key}.`)
+        .setStyle({ color: "#ffffff" })
+        .setVisible(true);
+      this.time.delayedCall(1200, () => this.feedbackText.setVisible(false));
+    }
+
+    // start demo timeout AFTER stimulus appears
+    if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+    this.timeoutActive = false;
+    this.trialDeadline = this.time.delayedCall(this.demoTimeoutMs, () => this.onDemoTimeoutDemo && this.onDemoTimeoutDemo());
+  });
+}
+
+
+onDemoTimeoutDemo() {
+  if (!this.inDemo || this.isPaused) return;     // ignore if demo ended/paused
+  this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
+  this.time.delayedCall(800, () => {
+    this.feedbackText.setVisible(false);
+    this.runDemoTrial();                          // replay the same demo stimulus
+  });
+}
+
+
 
 }
 
