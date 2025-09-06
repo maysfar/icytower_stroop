@@ -529,11 +529,18 @@ endGamePhase() {
 
   this.stroopText.setText("Task Complete!").setFontSize(48).setColor("#ffffffff");
   this.stroopText.setVisible(true);
-
+/*
   exportCSV(this.trialData, "gamified_stroop.csv");
   this.time.delayedCall(2000, () => {
     window.location.href = "qualtrics.html";
   });
+  */
+  const filename = "gamified_stroop.csv";
+  exportCSV(this.trialData, filename).finally(() => {
+    // tiny buffer so the browser settles
+    this.time.delayedCall(300, () => { window.location.href = "qualtrics.html"; });
+  });
+
 }
 
 handleNonResponse() {
