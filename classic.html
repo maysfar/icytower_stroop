@@ -94,8 +94,9 @@
                 } */ if (sessionNum >= sessions) {
                         clearCanvas();
                         writeText("You finished the task. Thank you!");
-
-                        exportCSV(results, "classic_stroop.csv")
+                        const participantId = localStorage.getItem("participantId") || "anon";
+                        const filename = `classic_stroop_${participantId}.csv`;
+                        exportCSV(results, filename)
                         .finally(() => {
                             // small buffer so the request settles
                             setTimeout(() => {

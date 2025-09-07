@@ -47,8 +47,8 @@ class GameScene extends Phaser.Scene {
     super("scene-game");
     this.sessionIndex = 0;       // Current session number (starts at 0)
     this.trialIndex = 0;         // Current trial number within the session
-    this.trialsPerSession = 6;   // How many trials in each session
-    this.totalSessions = 6;      // How many sessions in total
+    this.trialsPerSession = 2;   // How many trials in each session
+    this.totalSessions = 2;      // How many sessions in total
     this.players
     this.cursor
     this.playerSpeed=speedDown+50
@@ -529,13 +529,8 @@ endGamePhase() {
 
   this.stroopText.setText("Task Complete!").setFontSize(48).setColor("#ffffffff");
   this.stroopText.setVisible(true);
-/*
-  exportCSV(this.trialData, "gamified_stroop.csv");
-  this.time.delayedCall(2000, () => {
-    window.location.href = "qualtrics.html";
-  });
-  */
-  const filename = "gamified_stroop.csv";
+  const participantId = localStorage.getItem("participantId") || "anon";
+  const filename = `gamified_stroop_${participantId}.csv`;
   exportCSV(this.trialData, filename).finally(() => {
     // tiny buffer so the browser settles
     this.time.delayedCall(300, () => { window.location.href = "qualtrics.html"; });
