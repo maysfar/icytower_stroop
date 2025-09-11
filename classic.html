@@ -84,14 +84,27 @@
 
             $(document).off('keydown.waitForSpace');
         
-                if (sessionNum >= sessions) {
+                /*if (sessionNum >= sessions) {
                     exportCSV(results, "classic_stroop.csv");
                     clearCanvas();
                     writeText("You finished the task. Thank you!");
                     setTimeout(() => {
                         window.location.href = "qualtrics.html";
                     }, 2000); // 2 seconds delay
-                } else {
+                } */ if (sessionNum >= sessions) {
+                        clearCanvas();
+                        writeText("You finished the task. Thank you!");
+                        const participantId = localStorage.getItem("participantId") || "anon";
+                        const filename = `classic_stroop_${participantId}.csv`;
+                        exportCSV(results, filename)
+                        .finally(() => {
+                            // small buffer so the request settles
+                            setTimeout(() => {
+                            window.location.href = "qualtrics.html";
+                            }, 300);
+                        });
+                    }
+               else {
                     runSession();
                 } 
             });
