@@ -18,7 +18,7 @@ const step_locations = {
 
 const bgScrollSpeed = 1.2;
 const speedDown = 300
-const jumpVelocity = -400;
+const jumpVelocity = -400; //not used
 const TRIAL_MS = 2000; //trial length
 const FAST_TARGET_Y =200 ;   // stroop text is on 50 so this is 150 bellow we good
 const FAST_DURATION = 500;   // the same delay between + and stim
@@ -84,6 +84,9 @@ class GameScene extends Phaser.Scene {
     this.demoTimeoutMs = 15000;       // longer read time
     this.demoCurrent = null;
     this.demoTrials = demoTrials
+    this.bgSpeed  = bgScrollSpeed; // runtime scroll speed (used in update)
+    this.gravityY = speedDown;     // runtime gravity (applied to physics world)
+
  
 
   }
@@ -178,8 +181,9 @@ this.introText = this.add.text(sizes.width / 2, 8, "", {
 .setBackgroundColor("#000000")
 .setPadding(8, 8, 8, 8)
 .setVisible(false);
+this.physics.world.gravity.y = this.gravityY;
 
-// show the intro now
+// show the intro nowthis.physics.world.gravity.y = this.gravityY;
 this.showDemoIntro();
 
 }
@@ -188,6 +192,7 @@ this.showDemoIntro();
 
 startGame() {
   this.inDemo = false;
+  this.setDemoSpeed(false);
   this.rtText.setVisible(true).setText("RT: -");
   this.introText?.setVisible(false);   // NEW
     this.stroopText
@@ -228,20 +233,20 @@ update() {
   }
   if (this.isPaused) return;
   const { left, right, up } = this.cursor;
-  this.bg1.y += bgScrollSpeed;
-  this.bg2.y += bgScrollSpeed;
-  this.player.y += bgScrollSpeed;
+  this.bg1.y += this.bgSpeed;
+  this.bg2.y += this.bgSpeed;
+  this.player.y += this.bgSpeed;
   this.platforms.children.iterate((child) => {
-  child.y += bgScrollSpeed;
-  child.body.y += bgScrollSpeed;
+  child.y += this.bgSpeed;
+  child.body.y += this.bgSpeed;
  if (child.labelText) {
-    child.labelText.y += bgScrollSpeed;
+    child.labelText.y += this.bgSpeed;
   }
   })
 
   this.floors.children.iterate((child) => {
-  child.y += bgScrollSpeed;
-  child.body.y += bgScrollSpeed;
+  child.y += this.bgSpeed;
+  child.body.y += this.bgSpeed;
   })
 
   if (this.bg1.y >= sizes.height) {
@@ -397,7 +402,8 @@ handleStepLanding = (player, step) => {
           this.feedbackText.setVisible(false);
           this.demoIndex += 1; // only one demo trial for now
           if (this.demoIndex >= this.demoTrials.length) {
-            this.inDemo = false;              // demo is over
+            this.inDemo = false; 
+            this.setDemoSpeed(false);             // demo is over
             this.isPaused = true;             // pause and show continue prompt
             this.stroopText
             .setText("Demo complete\nPress Space to start")
@@ -751,6 +757,7 @@ startDemo() {
   this.resetTrialState({ forNewSession: true });
   this.isPaused = false;
   this.physics.resume();
+  this.setDemoSpeed(true);
   this.runDemoTrial();                  // show a single demo stimulus
 }
 
@@ -806,7 +813,7 @@ runDemoTrial() {
         .setText(`Example: ink is ${nameFromHex}. Press ${key}.`)
         .setStyle({ color: "#ffffff" })
         .setVisible(true);
-      this.time.delayedCall(1200, () => this.feedbackText.setVisible(false));
+      this.time.delayedCall(2000, () => this.feedbackText.setVisible(false));
     }
 
     // start demo timeout AFTER stimulus appears
@@ -818,12 +825,20 @@ runDemoTrial() {
 
 
 onDemoTimeoutDemo() {
-  if (!this.inDemo || this.isPaused) return;     // ignore if demo ended/paused
+  if (!this.inDemo || this.isPaused) {
+    return;
+  }     // ignore if demo ended/paused
   this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
   this.time.delayedCall(800, () => {
     this.feedbackText.setVisible(false);
     this.runDemoTrial();                          // replay the same demo stimulus
   });
+}
+
+setDemoSpeed(on) {
+  const factor = on ? 0.6 : 1;                // tweak 0.5 to taste
+  this.bgSpeed = bgScrollSpeed * factor;      // scroll speed
+  this.physics.world.gravity.y = speedDown * factor; // fall speed
 }
 
 
