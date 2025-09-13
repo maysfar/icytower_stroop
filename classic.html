@@ -26,8 +26,8 @@
 <script  type="module">
     import { exportCSV } from "./exportCSV.js";
     var participantId = localStorage.getItem("participantId");
-    var colorWords = ["red", "green", "blue","yellow", "purple", "brown", "black", "pink"];
-    var neutralWords = ["bike", "window", "door", "book", "tree", "car", "dog", "cat"];
+    var colorWords = ["RED", "GREEN", "BLUE"];
+    var neutralWords = ["APPLE", "BIKE", "HOUSE", "BOOK", "TREE", "CAR", "DOG", "CAT"];
     var colors = ["#FF0000", "#00FF00", "#0000FF"];
     const colorMap = { "#FF0000":"R", "#00FF00":"G", "#0000FF":"B" };
     const labelsOrder = "RGB";
@@ -35,12 +35,13 @@
     var sessions = 2;
     var sessionNum = 0;
     let results = [];
-    const demoTrials = [{word: "red", color: colors[0]},
-     {word: "blue", color: colors[1]},
-     {word: "tree", color: colors[2]},
-     {word: "green", color: colors[0]},
-     {word: "door", color: colors[1]},
-     {word: "blue", color: colors[2]}] //determined trials for the demo (2 of each type)
+    const demoTrials = [
+  { word: "RED",  color: colors[0] },
+  { word: "BLUE", color: colors[1] },
+  { word: "TREE", color: colors[2] },
+  { word: "GREEN",color: colors[0] },
+  { word: "BOOK", color: colors[1] },
+  { word: "BLUE", color: colors[2] }]; //determined trials for the demo (2 of each type)
 
     function getRandom(){
         let StimType = Math.floor(Math.random()*3),

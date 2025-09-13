@@ -29,15 +29,15 @@ const COLOR_HEX_MAP = {
   blue:  "#0000FF"
 };
 const COLOR_WORDS = ["RED", "GREEN", "BLUE"];   // text for congruent/incongruent
-const NEUTRAL_WORDS = ["APPLE", "BIKE", "HOUSE"]; // your neutral list (edit as you like)
+const NEUTRAL_WORDS = ["APPLE", "BIKE", "HOUSE", "BOOK", "TREE", "CAR", "DOG", "CAT"];; // your neutral list (edit as you like)
 const colors = ["#FF0000", "#00FF00", "#0000FF"];
 const demoTrials = [
-  { word: "red",  color: colors[0] },
-  { word: "blue", color: colors[1] },
-  { word: "tree", color: colors[2] },
-  { word: "green",color: colors[0] },
-  { word: "door", color: colors[1] },
-  { word: "blue", color: colors[2] },
+  { word: "RED",  color: colors[0] },
+  { word: "BLUE", color: colors[1] },
+  { word: "TREE", color: colors[2] },
+  { word: "GREEN",color: colors[0] },
+  { word: "BOOK", color: colors[1] },
+  { word: "BLUE", color: colors[2] },
 ];
 
 
