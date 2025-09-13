@@ -127,10 +127,17 @@
       }
       localStorage.setItem('participantId', id);
 
-      // Randomize order
-      const order = Math.random() < 0.5 ? 'classicFirst' : 'gameFirst';
-      localStorage.setItem('taskOrder', order);
 
+      // Save ID
+      localStorage.setItem("participantId", id);
+
+      //to help qualtrics flow 
+      localStorage.setItem("classicDone", "0");   
+      localStorage.setItem("gameDone", "0");      
+      
+      // Randomly choose task order
+      const order = Math.random() < 0.5 ? "classicFirst" : "gameFirst";
+      localStorage.setItem("taskOrder", order);
       // Go!
       if (order === 'classicFirst') {
         window.location.href = 'classic.html';

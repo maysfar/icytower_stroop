@@ -16,7 +16,7 @@ const step_locations = {
   x3:800
 };
 
-const bgScrollSpeed = 1.2;
+const bgScrollSpeed = 1;
 const speedDown = 300
 const jumpVelocity = -400;
 const TRIAL_MS = 2000; //trial length
@@ -179,6 +179,20 @@ this.introText = this.add.text(sizes.width / 2, 8, "", {
 .setPadding(8, 8, 8, 8)
 .setVisible(false);
 
+this.demoHintText = this.add.text(sizes.width / 2, sizes.height / 2 - 140, "", {
+  fontFamily: "Arial",
+  fontSize: "28px",
+  fontStyle: "bold",
+  color: "#ffffff",
+  align: "center",
+  wordWrap: { width: sizes.width * 0.9 }
+})
+.setOrigin(0.5)
+.setDepth(1002)
+.setBackgroundColor("#000000")
+.setPadding(8, 8, 8, 8)
+.setVisible(false);
+
 // show the intro now
 this.showDemoIntro();
 
@@ -204,6 +218,9 @@ startGame() {
   this.resetTrialState();
   this.isPaused = false;
   this.physics.resume();
+  this.cleanup();
+  this.CreateNewFloors();
+
   this.setNewStroopTrial();
 }
 
@@ -222,8 +239,9 @@ update() {
 
     } else if (text.includes("Press Space to start")) {
       // First screen → demo first, then game
-      if (this.inDemo) this.startDemo();
-      else this.startGame();
+      this.time.delayedCall(300, () => {  if (this.inDemo) this.startDemo();
+      else this.startGame();});
+     
     }
   }
   if (this.isPaused) return;
@@ -293,6 +311,7 @@ handleResponse(step) {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
   if (this.reacted) return;
   this.reacted = true;
+  if (this.demoHintText) this.demoHintText.setVisible(false);
 
   //  Only show/record RT in the real task
   if (!this.inDemo && this.rtStartHR != null) {
@@ -356,7 +375,9 @@ handleStepLanding = (player, step) => {
   if(player.body.touching.down && step.body.touching.up ){
     this.stepSound.play();
     step.setDisplaySize(sizes.width,step_sizes.width).refreshBody()
-    step.labelText.destroy()
+    if (step.labelText) {
+      step.labelText.destroy();
+    }
     this.floor=step
     this.platforms.remove(step,false);
     this.floors.add(step)
@@ -397,6 +418,8 @@ handleStepLanding = (player, step) => {
           this.feedbackText.setVisible(false);
           this.demoIndex += 1; // only one demo trial for now
           if (this.demoIndex >= this.demoTrials.length) {
+              this.cleanup();
+              this.CreateNewFloors();
             this.inDemo = false;              // demo is over
             this.isPaused = true;             // pause and show continue prompt
             this.stroopText
@@ -404,7 +427,8 @@ handleStepLanding = (player, step) => {
             .setFontSize(44)
             .setColor("#ffffffff")
             .setVisible(true);
-          } else { this.runDemoTrial(); } // show next demo trial (if you add more later)
+          } else { if (this.demoHintText) this.demoHintText.setVisible(false);
+                      this.runDemoTrial(); } // show next demo trial (if you add more later)
 
             });
           } else {
@@ -412,6 +436,7 @@ handleStepLanding = (player, step) => {
           this.hurryupSound.play();
           this.time.delayedCall(1000, () => {
           this.feedbackText.setVisible(false);
+          if (this.demoHintText) this.demoHintText.setVisible(false);
           this.runDemoTrial();              // show the same demo stimulus again
           });
           }
@@ -529,8 +554,23 @@ endGamePhase() {
 
   this.stroopText.setText("Task Complete!").setFontSize(48).setColor("#ffffffff");
   this.stroopText.setVisible(true);
-  const participantId = localStorage.getItem("participantId") || "anon";
+  var participantId = localStorage.getItem("participantId") || "anon";
+  const params = new URLSearchParams(window.location.search);
+  const pidFromUrl   = params.get("pid");
+  const classicFromUrl = params.get("classic");
+  const gameFromUrl    = params.get("game");
+  const taskVersionFromUrl     = params.get("Task_Version");
+
+  if (pidFromUrl)     {localStorage.setItem("participantId", pidFromUrl); participantId = pidFromUrl; } 
+  //if this is the first version the user completing we dont hace pidfromUr; we have the PI we set in the index thats why we need to keep these two
+
+  if (classicFromUrl) localStorage.setItem("classicDone", classicFromUrl);
+  if (gameFromUrl)    localStorage.setItem("gameDone", gameFromUrl);
+  if (taskVersionFromUrl)     localStorage.setItem("taskVersion", taskVersionFromUrl);
+  
   const filename = `gamified_stroop_${participantId}.csv`;
+  localStorage.setItem("gameDone", "1");
+  localStorage.setItem("taskVersion", "game");
   exportCSV(this.trialData, filename).finally(() => {
     // tiny buffer so the browser settles
     this.time.delayedCall(300, () => { window.location.href = "qualtrics.html"; });
@@ -732,6 +772,8 @@ pickStroopStimulus() {
 
 showDemoIntro() {
 if (!this.introText) return;
+  this.physics.pause();
+  this.isPaused = true;
 this.introText.setText(
 
   "• Left Arrow  = Left platform\n" +
@@ -757,7 +799,8 @@ startDemo() {
 runDemoTrial() {
   this.reacted = false;      // allow input for this demo trial
   this.rtStartTime = null;
-
+  this.cleanup();
+  this.CreateNewFloors();
   // fixation
   this.stroopText
     .setOrigin(0.5, 0.5)
@@ -802,17 +845,29 @@ runDemoTrial() {
     if (this.demoIndex < 3) {
       const key = this.currentCorrectLetter === "R" ? "Left Arrow" :
                   this.currentCorrectLetter === "G" ? "Up Arrow" : "Right Arrow";
-      this.feedbackText
+      this.demoHintText
         .setText(`Example: ink is ${nameFromHex}. Press ${key}.`)
-        .setStyle({ color: "#ffffff" })
         .setVisible(true);
-      this.time.delayedCall(1200, () => this.feedbackText.setVisible(false));
-    }
+          this.physics.pause();
+          this.isPaused = true;
+          this.time.delayedCall(1200, () => {
+          this.physics.resume();
+          this.isPaused = false;
+    // keep the hint visible until they respond (do NOT hide here)
+          });
+          if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+              this.timeoutActive = false;
+          }else{
+        // regular demo items: keep the existing timeout
+              if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+                  this.timeoutActive = false;
+                  this.trialDeadline = this.time.delayedCall(
+                  this.demoTimeoutMs,
+                  () => this.onDemoTimeoutDemo && this.onDemoTimeoutDemo()
+            );
+          }
 
     // start demo timeout AFTER stimulus appears
-    if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
-    this.timeoutActive = false;
-    this.trialDeadline = this.time.delayedCall(this.demoTimeoutMs, () => this.onDemoTimeoutDemo && this.onDemoTimeoutDemo());
   });
 }
 
