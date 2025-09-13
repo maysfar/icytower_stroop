@@ -292,8 +292,11 @@ if (
     this.reacted = false;
     this.isPaused = false;
 
-    this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
-    this.time.delayedCall(600, () => {
+    this.feedbackText.setText("Try faster!")
+      .setStyle({ color: "#ffffff" })
+      .setVisible(true);
+    if (this.hurryupSound && !this.hurryupSound.isPlaying) this.hurryupSound.play();
+    this.time.delayedCall(900, () => {
       this.feedbackText.setVisible(false);
       this.runDemoTrial();   // replay same demo item
     });
@@ -433,8 +436,6 @@ handleStepLanding = (player, step) => {
             });
           } else {
           this.feedbackText.setText("Wrong! Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
-          if(this.hurryupSound.isPlaying == false){
-            this.hurryupSound.play();}
           this.time.delayedCall(1000, () => {
           this.feedbackText.setVisible(false);
           if (this.demoHintText) this.demoHintText.setVisible(false);
@@ -857,6 +858,10 @@ runDemoTrial() {
           });
           if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
               this.timeoutActive = false;
+              this.trialDeadline = this.time.delayedCall(
+              this.demoTimeoutMs,
+              () => this.onDemoTimeoutDemo && this.onDemoTimeoutDemo()
+            );
           }else{
         // regular demo items: keep the existing timeout
               if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
@@ -875,6 +880,7 @@ runDemoTrial() {
 onDemoTimeoutDemo() {
   if (!this.inDemo || this.isPaused) return;     // ignore if demo ended/paused
   this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
+  if (this.hurryupSound && !this.hurryupSound.isPlaying) this.hurryupSound.play();
   this.time.delayedCall(800, () => {
     this.feedbackText.setVisible(false);
     this.runDemoTrial();                          // replay the same demo stimulus
