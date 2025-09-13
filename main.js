@@ -435,7 +435,7 @@ handleStepLanding = (player, step) => {
 
             });
           } else {
-          this.feedbackText.setText("Wrong! Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
+          this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
           this.time.delayedCall(1000, () => {
           this.feedbackText.setVisible(false);
           if (this.demoHintText) this.demoHintText.setVisible(false);
