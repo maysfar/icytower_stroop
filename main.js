@@ -356,7 +356,9 @@ handleStepLanding = (player, step) => {
   if(player.body.touching.down && step.body.touching.up ){
     this.stepSound.play();
     step.setDisplaySize(sizes.width,step_sizes.width).refreshBody()
-    step.labelText.destroy()
+    if (step.labelText) {
+      step.labelText.destroy();
+    }
     this.floor=step
     this.platforms.remove(step,false);
     this.floors.add(step)
@@ -529,8 +531,23 @@ endGamePhase() {
 
   this.stroopText.setText("Task Complete!").setFontSize(48).setColor("#ffffffff");
   this.stroopText.setVisible(true);
-  const participantId = localStorage.getItem("participantId") || "anon";
+  var participantId = localStorage.getItem("participantId") || "anon";
+  const params = new URLSearchParams(window.location.search);
+  const pidFromUrl   = params.get("pid");
+  const classicFromUrl = params.get("classic");
+  const gameFromUrl    = params.get("game");
+  const taskVersionFromUrl     = params.get("Task_Version");
+
+  if (pidFromUrl)     {localStorage.setItem("participantId", pidFromUrl); participantId = pidFromUrl; } 
+  //if this is the first version the user completing we dont hace pidfromUr; we have the PI we set in the index thats why we need to keep these two
+
+  if (classicFromUrl) localStorage.setItem("classicDone", classicFromUrl);
+  if (gameFromUrl)    localStorage.setItem("gameDone", gameFromUrl);
+  if (taskVersionFromUrl)     localStorage.setItem("taskVersion", taskVersionFromUrl);
+  
   const filename = `gamified_stroop_${participantId}.csv`;
+  localStorage.setItem("gameDone", "1");
+  localStorage.setItem("taskVersion", "game");
   exportCSV(this.trialData, filename).finally(() => {
     // tiny buffer so the browser settles
     this.time.delayedCall(300, () => { window.location.href = "qualtrics.html"; });
