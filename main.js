@@ -543,7 +543,7 @@ setNewStroopTrial() {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; } // 
   this.isPaused = true;
   this.stroopText.setText("")
-  this.time.delayedCall(1000, () => {
+  this.time.delayedCall(2000, () => {
   this.stroopText.setText("Session Complete\nPress Space to continue").setFontSize(44).setColor("#ffffffff");
   this.stroopText.setVisible(true);})
   this.superSound.play();
@@ -677,9 +677,6 @@ onTrialTimeout() {
 
   this.timeoutActive = true;
   this.reacted = true; // lock input after timeout
-  this.feedbackText.setText("Too slow!");
-  if(this.hurryupSound.isPlaying == false){
-    this.hurryupSound.play();}
 
   // Remove all collision surfaces so gravity + scroll make the player fall
   this.cleanup();
