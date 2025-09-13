@@ -13,6 +13,21 @@
       <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
       </div>
+      <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: auto; 
+      }
+      #gameContainer, #gameCanvas {
+        display: block;
+        max-width: 100%;
+        height: auto;  
+        margin: auto;
+      }
+</style>
     </main>
     <script type="module" src="/main.js"></script>
   </body>

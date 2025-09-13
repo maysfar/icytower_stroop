@@ -9,17 +9,26 @@
                 crossorigin="anonymous"></script>
     </head>
     <body>
-        <center>
-            <div>
-                <p>Classic Stroop!</p>
-                <canvas id="experiment" width=1000px height=700px></canvas>
+=            <div>
+                <canvas id="experiment" width="1000" height="700" ></canvas>
             </div>
-        </center>
 
         <style>
+             html, body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+                overflow: auto; 
+            }
             #experiment {
+                display: block;
+                margin: 0 auto;
+                background: black;
                 border: 2px solid white;
-                background-color: black; 
+                max-width: 100%;
+                height: auto;            
+            
             }
         </style>
 
