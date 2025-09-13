@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Welcome – Stroop Experiment</title>
   <style>
@@ -10,76 +10,123 @@
       background: linear-gradient(to right, #dbeafe, #f0f9ff);
       margin: 0;
       padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      display: flex; justify-content: center; align-items: center;
       height: 100vh;
     }
-
     .container {
-      background-color: white;
-      padding: 40px;
-      border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-      max-width: 500px;
-      text-align: center;
+      background: #fff; padding: 40px 48px; border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      width: clamp(340px, 90vw, 920px );
     }
-
-    h1 {
-      margin-bottom: 10px;
-      color: #1e3a8a;
+    h1 { margin: 0 0 8px; color: #1e3a8a; }
+    h2 { margin: 16px 0 8px; color: #1f2937; font-size: 1.1rem; }
+    p, label { color: #374151; font-size: 1.05rem; line-height: 1.65; }
+    .consent-box {
+      border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px;
+      max-height: 420px; overflow: auto; background: #f8fafc;
     }
-
-    p {
-      color: #374151;
-    }
-
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
     input[type="text"] {
-      padding: 12px;
-      width: 80%;
-      margin-top: 20px;
-      font-size: 1rem;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      outline: none;
+      padding: 12px; width: 100%; margin-top: 12px; font-size: 1rem;
+      border: 1px solid #cbd5e1; border-radius: 8px; outline: none;
     }
-
     button {
-      margin-top: 30px;
-      padding: 12px 24px;
-      font-size: 1rem;
-      background-color: #3b82f6;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
+      padding: 12px 20px; font-size: 1rem;
+      background: #3b82f6; color: #fff; border: 0; border-radius: 8px;
+      cursor: pointer; transition: background-color .2s ease;
     }
-
-    button:hover {
-      background-color: #2563eb;
-    }
+    button[disabled] { opacity: .6; cursor: not-allowed; }
+    button:hover:not([disabled]) { background: #2563eb; }
+    .muted { color: #6b7280; font-size: .9rem; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
-
   <div class="container">
-    <h1>Welcome!</h1>
-    <p>In this study, you will complete two types of Stroop tasks.<br/>
-      Please enter your Participant ID to begin.</p>
+    <!-- Step 1: Intro/Consent -->
+    <section id="consentStep">
+      <h1>Welcome!</h1>
+      <p>Please read the information below and confirm you agree to participate.</p>
 
-    <input type="text" id="participantId" placeholder="Participant ID" />
-    <br/>
-    <button onclick="startExperiment()">Start</button>
+      <div class="consent-box">
+        <h2>Study Information</h2>
+        <p>
+          You will complete two versions of the Stroop task (a classic text version and a game-like version).
+          You’ll identify the <b>ink color</b> of words as quickly and accurately as possible.
+          Total time: ~10–15 minutes.
+        </p>
+        <h2>Data & Privacy</h2>
+        <p>
+          We collect task responses (accuracy, reaction times) and a participant ID you provide.
+          Data are stored de-identified for research purposes.
+        </p>
+        <h2>Voluntary Participation</h2>
+        <p>
+          Participation is voluntary. You may stop at any time without penalty.
+        </p>
+        <h2>Contact</h2>
+        <p>For questions, contact the study team.</p>
+      </div>
+
+      <div class="actions">
+        <label>
+          <input type="checkbox" id="consentCheckbox" />
+          I have read the information and I agree to participate.
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="agreeBtn" disabled>I Agree & Continue</button>
+        <button type="button" onclick="window.location.href='about:blank'">I Do Not Agree</button>
+      </div>
+    </section>
+
+    <!-- Step 2: Participant ID -->
+    <section id="idStep" class="hidden">
+      <h1>Participant ID</h1>
+      <p>Please enter your Participant ID to begin.</p>
+
+      <input type="text" id="participantId" placeholder="Participant ID"/>
+      <div class="actions">
+        <button id="startBtn">Start</button>
+      </div>
+      <p class="muted" id="msg"></p>
+    </section>
   </div>
 
   <script>
-    function startExperiment() {
-      const id = document.getElementById("participantId").value.trim();
+    const consentStep = document.getElementById('consentStep');
+    const idStep      = document.getElementById('idStep');
+    const agreeBtn    = document.getElementById('agreeBtn');
+    const consentCb   = document.getElementById('consentCheckbox');
+    const startBtn    = document.getElementById('startBtn');
+    const msg         = document.getElementById('msg');
+
+    // Enable the agree button only when checked
+    consentCb.addEventListener('change', () => {
+      agreeBtn.disabled = !consentCb.checked;
+    });
+
+    // Move to ID step and log consent
+    agreeBtn.addEventListener('click', () => {
+      // store consent version + timestamp
+      const stamp = new Date().toISOString();
+      localStorage.setItem('consentGiven', `v1|${stamp}`);
+
+      consentStep.classList.add('hidden');
+      idStep.classList.remove('hidden');
+
+    });
+
+    // Start flow (your existing logic)
+    startBtn.addEventListener('click', () => {
+      const id = document.getElementById('participantId').value.trim();
       if (!id) {
-        alert("Please enter your Participant ID.");
+        msg.textContent = 'Please enter your Participant ID.';
         return;
       }
+      localStorage.setItem('participantId', id);
+
 
       // Save ID
       localStorage.setItem("participantId", id);
@@ -91,15 +138,13 @@
       // Randomly choose task order
       const order = Math.random() < 0.5 ? "classicFirst" : "gameFirst";
       localStorage.setItem("taskOrder", order);
-
-      // Redirect
-      if (order === "classicFirst") {
-        window.location.href = "classic.html";
+      // Go!
+      if (order === 'classicFirst') {
+        window.location.href = 'classic.html';
       } else {
-        window.location.href = "game.html";
+        window.location.href = 'game.html';
       }
-    }
+    });
   </script>
-
 </body>
 </html>
