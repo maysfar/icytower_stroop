@@ -16,7 +16,7 @@ const step_locations = {
   x3:800
 };
 
-const bgScrollSpeed = 1;
+const bgScrollSpeed = 0.9;
 const speedDown = 300
 const jumpVelocity = -400;
 const TRIAL_MS = 2000; //trial length
