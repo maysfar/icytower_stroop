@@ -173,7 +173,7 @@
 
             clearCanvas();
             const [word, color, type] = getRandom();
-            writeText(word, color);
+            writeText(word.toUpperCase(), color);
 
             const result = await runTrial(2000);
             let feedbackWord;
