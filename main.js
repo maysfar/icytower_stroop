@@ -29,7 +29,8 @@ const COLOR_HEX_MAP = {
   blue:  "#0000FF"
 };
 const COLOR_WORDS = ["RED", "GREEN", "BLUE"];   // text for congruent/incongruent
-const NEUTRAL_WORDS = ["APPLE", "BIKE", "HOUSE", "BOOK", "TREE", "CAR", "DOG", "CAT"];; // your neutral list (edit as you like)
+const NEUTRAL_WORDS = ["BIKE","WINDOW","DOOR","BOOK","TREE","CAR","DOG","CAT"];
+
 const colors = ["#FF0000", "#00FF00", "#0000FF"];
 const demoTrials = [
   { word: "RED",  color: colors[0] },
@@ -70,8 +71,7 @@ class GameScene extends Phaser.Scene {
     this.reacted = false;
     this.sessionLabelOrder = ["R", "G", "B"]; // default order
     this.nonResponseHandled = false;
-    this.permutations = [["R", "G", "B"], ["R", "B", "G"], ["G", "R", "B"],
-    ["G", "B", "R"],["B", "R", "G"],["B", "G", "R"]];
+
     this.BgMusic;
     this.stepSound;
     this.superSound;
@@ -158,7 +158,8 @@ class GameScene extends Phaser.Scene {
   fontSize: "36px",
   color: "#ff0000",
   fontStyle: "bold"
-}).setOrigin(0.5);
+}).setOrigin(0.5)
+.setDepth(9999); ;
 
 // existing stroopText...
 this.stroopText.setText("Press Space to start").setFontSize(48).setColor("#ffffffff");
@@ -233,7 +234,6 @@ update() {
 
     if (text.includes("Session Complete")) {
       // End of session → start next
-      this.sessionLabelOrder = this.permutations[this.sessionIndex];
       this.resetTrialState({ forNewSession: true });
       this.startGame();
 
@@ -316,10 +316,10 @@ handleResponse(step) {
   //  Only show/record RT in the real task
   if (!this.inDemo && this.rtStartHR != null) {
     const rt = performance.now() - this.rtStartHR;
-    this.rtText.setText("RT: " + rt.toFixed(20) + " ms");
+    this.rtText.setText("RT: " + Math.round(rt) + " ms");
     if (this.currentTrial && this.currentTrial.outcome === "pending") {
       this.currentTrial.response_label = step.label;
-      this.currentTrial.rt_ms = +rt.toFixed(1);
+      this.currentTrial.rt_ms = Math.round(rt);
     }
   } else if (this.currentTrial && this.currentTrial.outcome === "pending") {
     // Demo: record choice only, no RT
