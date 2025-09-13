@@ -293,7 +293,7 @@ if (
     this.isPaused = false;
 
     this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
-    this.time.delayedCall(600, () => {
+    this.time.delayedCall(1200, () => {
       this.feedbackText.setVisible(false);
       this.runDemoTrial();   // replay same demo item
     });
@@ -434,7 +434,7 @@ handleStepLanding = (player, step) => {
           } else {
           this.feedbackText.setText("Wrong! Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
           this.hurryupSound.play();
-          this.time.delayedCall(1000, () => {
+          this.time.delayedCall(1400, () => {
           this.feedbackText.setVisible(false);
           if (this.demoHintText) this.demoHintText.setVisible(false);
           this.runDemoTrial();              // show the same demo stimulus again
@@ -586,7 +586,7 @@ handleNonResponse() {
 
   console.log("⛔ Non-response detected");
   this.feedbackText.setText("Try to respond faster!");
-  this.hurryupSound.play();
+  //this.hurryupSound.play();
 
 
   if(this.currentTrial && this.currentTrial.outcome === "pending"){
@@ -875,7 +875,7 @@ runDemoTrial() {
 onDemoTimeoutDemo() {
   if (!this.inDemo || this.isPaused) return;     // ignore if demo ended/paused
   this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
-  this.time.delayedCall(800, () => {
+  this.time.delayedCall(1200, () => {
     this.feedbackText.setVisible(false);
     this.runDemoTrial();                          // replay the same demo stimulus
   });
