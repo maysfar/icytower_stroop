@@ -16,7 +16,7 @@ const step_locations = {
   x3:800
 };
 
-const bgScrollSpeed = 1;
+const bgScrollSpeed = 0.9;
 const speedDown = 300
 const jumpVelocity = -400;
 const TRIAL_MS = 2000; //trial length
@@ -292,8 +292,11 @@ if (
     this.reacted = false;
     this.isPaused = false;
 
-    this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
-    this.time.delayedCall(600, () => {
+    this.feedbackText.setText("Try faster!")
+      .setStyle({ color: "#ffffff" })
+      .setVisible(true);
+    if (this.hurryupSound && !this.hurryupSound.isPlaying) this.hurryupSound.play();
+    this.time.delayedCall(900, () => {
       this.feedbackText.setVisible(false);
       this.runDemoTrial();   // replay same demo item
     });
@@ -433,8 +436,6 @@ handleStepLanding = (player, step) => {
             });
           } else {
           this.feedbackText.setText("Wrong! Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
-          if(this.hurryupSound.isPlaying == false){
-            this.hurryupSound.play();}
           this.time.delayedCall(1000, () => {
           this.feedbackText.setVisible(false);
           if (this.demoHintText) this.demoHintText.setVisible(false);
@@ -545,9 +546,8 @@ setNewStroopTrial() {
   this.stroopText.setText("")
   this.time.delayedCall(1000, () => {
   this.stroopText.setText("Session Complete\nPress Space to continue").setFontSize(44).setColor("#ffffffff");
-  this.stroopText.setVisible(true);})
-  this.superSound.play();
-
+  this.stroopText.setVisible(true);
+  this.superSound.play();})
 }
 
 endGamePhase() {
@@ -677,9 +677,6 @@ onTrialTimeout() {
 
   this.timeoutActive = true;
   this.reacted = true; // lock input after timeout
-  this.feedbackText.setText("Too slow!");
-  if(this.hurryupSound.isPlaying == false){
-    this.hurryupSound.play();}
 
   // Remove all collision surfaces so gravity + scroll make the player fall
   this.cleanup();
@@ -860,6 +857,10 @@ runDemoTrial() {
           });
           if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
               this.timeoutActive = false;
+              this.trialDeadline = this.time.delayedCall(
+              this.demoTimeoutMs,
+              () => this.onDemoTimeoutDemo && this.onDemoTimeoutDemo()
+            );
           }else{
         // regular demo items: keep the existing timeout
               if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
@@ -878,6 +879,7 @@ runDemoTrial() {
 onDemoTimeoutDemo() {
   if (!this.inDemo || this.isPaused) return;     // ignore if demo ended/paused
   this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
+  if (this.hurryupSound && !this.hurryupSound.isPlaying) this.hurryupSound.play();
   this.time.delayedCall(800, () => {
     this.feedbackText.setVisible(false);
     this.runDemoTrial();                          // replay the same demo stimulus
