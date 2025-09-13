@@ -433,7 +433,8 @@ handleStepLanding = (player, step) => {
             });
           } else {
           this.feedbackText.setText("Wrong! Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
-          this.hurryupSound.play();
+          if(this.hurryupSound.isPlaying == false){
+            this.hurryupSound.play();}
           this.time.delayedCall(1000, () => {
           this.feedbackText.setVisible(false);
           if (this.demoHintText) this.demoHintText.setVisible(false);
@@ -586,7 +587,8 @@ handleNonResponse() {
 
   console.log("⛔ Non-response detected");
   this.feedbackText.setText("Try to respond faster!");
-  this.hurryupSound.play();
+  if(this.hurryupSound.isPlaying == false){
+    this.hurryupSound.play();}
 
 
   if(this.currentTrial && this.currentTrial.outcome === "pending"){
@@ -676,7 +678,8 @@ onTrialTimeout() {
   this.timeoutActive = true;
   this.reacted = true; // lock input after timeout
   this.feedbackText.setText("Too slow!");
-  this.hurryupSound.play();
+  if(this.hurryupSound.isPlaying == false){
+    this.hurryupSound.play();}
 
   // Remove all collision surfaces so gravity + scroll make the player fall
   this.cleanup();
