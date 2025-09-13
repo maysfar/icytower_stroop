@@ -29,7 +29,7 @@ const COLOR_HEX_MAP = {
   blue:  "#0000FF"
 };
 const COLOR_WORDS = ["RED", "GREEN", "BLUE"];   // text for congruent/incongruent
-const NEUTRAL_WORDS = ["BIKE","WINDOW","DOOR","BOOK","TREE","CAR","DOG","CAT"];
+const NEUTRAL_WORDS = ["APPLE", "BIKE", "HOUSE", "BOOK", "TREE", "CAR", "DOG", "CAT"];
 
 const colors = ["#FF0000", "#00FF00", "#0000FF"];
 const demoTrials = [
