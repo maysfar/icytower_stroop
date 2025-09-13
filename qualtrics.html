@@ -23,9 +23,24 @@
   </style>
   <script>
     setTimeout(() => {
-    window.location.href = "https://socialtau.qualtrics.com/jfe/form/SV_9Y4DIkmLH1p07Ii?visit=" + Date.now();
+    const pid = localStorage.getItem("participantId") || "anon";
+    const classicDone = localStorage.getItem("classicDone") || "0";
+    const gameDone = localStorage.getItem("gameDone") || "0";
+    const taskVersion = localStorage.getItem("taskVersion") || "unknown";
+    console.log("Redirecting with PID:", pid, "Classic Done:", classicDone, "Game Done:", gameDone, "Task Version:", taskVersion);
+    
+    const base = "https://socialtau.qualtrics.com/jfe/form/SV_9Y4DIkmLH1p07Ii";
+    const qs =
+      "?visit=" + Date.now() +
+      "&pid=" + encodeURIComponent(pid) +
+      "&classic=" + encodeURIComponent(classicDone) +
+      "&game=" + encodeURIComponent(gameDone) +
+      "&Task_Version=" + encodeURIComponent(taskVersion);
 
-    }, 4000); // 4 seconds delay
+    const url = base + qs;
+    console.log("Redirecting to:", url);
+    window.location.href = url;
+  }, 300); 
   </script>
 </head>
 <body>
