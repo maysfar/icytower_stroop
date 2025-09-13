@@ -48,8 +48,8 @@ class GameScene extends Phaser.Scene {
     super("scene-game");
     this.sessionIndex = 0;       // Current session number (starts at 0)
     this.trialIndex = 0;         // Current trial number within the session
-    this.trialsPerSession = 2;   // How many trials in each session
-    this.totalSessions = 2;      // How many sessions in total
+    this.trialsPerSession = 30;   // How many trials in each session
+    this.totalSessions = 4;      // How many sessions in total
     this.players
     this.cursor
     this.playerSpeed=speedDown+50
