@@ -544,11 +544,10 @@ setNewStroopTrial() {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; } // 
   this.isPaused = true;
   this.stroopText.setText("")
-  this.time.delayedCall(2000, () => {
+  this.time.delayedCall(1000, () => {
   this.stroopText.setText("Session Complete\nPress Space to continue").setFontSize(44).setColor("#ffffffff");
-  this.stroopText.setVisible(true);})
-  this.superSound.play();
-
+  this.stroopText.setVisible(true);
+  this.superSound.play();})
 }
 
 endGamePhase() {
