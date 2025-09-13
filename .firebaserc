@@ -1,5 +1,8 @@
 {
-  "projects": {
-    "default": "icytower-stroop"
+  "projects": { "default": "icytower-stroop" },
+  "targets": {
+    "icytower-stroop": {
+      "hosting": { "live": ["icytower-stroop"] }
+    }
   }
 }
