@@ -100,7 +100,7 @@ class GameScene extends Phaser.Scene {
 
   create() {
 
-    this.BgMusic = this.sound.add("BgMusic");
+    this.BgMusic = this.sound.add("BgMusic",{loop: this.onTrialTimeout});
     this.stepSound = this.sound.add("stepSound");
     this.superSound = this.sound.add("superSound");
     this.hurryupSound = this.sound.add("hurryupSound");
@@ -149,10 +149,10 @@ class GameScene extends Phaser.Scene {
 
     this.cursor = this.input.keyboard.createCursorKeys();
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.rtText = this.add.text(sizes.width - 20, 50, "RT: -", {
-    fontSize: "20px",
-    color: "#fff"
-  }).setOrigin(1, 0);
+    //this.rtText = this.add.text(sizes.width - 20, 50, "RT: -", {
+    //fontSize: "20px",
+    //color: "#fff"
+  //}).setOrigin(1, 0);
 
   this.feedbackText = this.add.text(sizes.width / 2, sizes.height / 2, "", {
   fontSize: "36px",
@@ -203,7 +203,7 @@ this.showDemoIntro();
 
 startGame() {
   this.inDemo = false;
-  this.rtText.setVisible(true).setText("RT: -");
+  //this.rtText.setVisible(true).setText("RT: -"); we don't want the participant to see it
   this.introText?.setVisible(false);   // NEW
     this.stroopText
     .setVisible(true)
@@ -215,7 +215,6 @@ startGame() {
     .setColor("#ffffffff")
     .setStyle({ wordWrap: { width: 0 } });
   this.feedbackText.setText("").setVisible(true);
-  this.rtText.setText("RT: -");
   this.resetTrialState();
   this.isPaused = false;
   this.physics.resume();
@@ -319,7 +318,7 @@ handleResponse(step) {
   //  Only show/record RT in the real task
   if (!this.inDemo && this.rtStartHR != null) {
     const rt = performance.now() - this.rtStartHR;
-    this.rtText.setText("RT: " + Math.round(rt) + " ms");
+    //this.rtText.setText("RT: " + Math.round(rt) + " ms");
     if (this.currentTrial && this.currentTrial.outcome === "pending") {
       this.currentTrial.response_label = step.label;
       this.currentTrial.rt_ms = Math.round(rt);
@@ -435,7 +434,7 @@ handleStepLanding = (player, step) => {
 
             });
           } else {
-          this.feedbackText.setText("Wrong! Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
+          this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
           this.time.delayedCall(1000, () => {
           this.feedbackText.setVisible(false);
           if (this.demoHintText) this.demoHintText.setVisible(false);
@@ -574,7 +573,7 @@ endGamePhase() {
   localStorage.setItem("taskVersion", "game");
   exportCSV(this.trialData, filename).finally(() => {
     // tiny buffer so the browser settles
-    this.time.delayedCall(300, () => { window.location.href = "qualtrics.html"; });
+    this.time.delayedCall(300, () => { this.BgMusic.stop(); window.location.href = "qualtrics.html"; });
   });
 
 }
@@ -787,7 +786,7 @@ this.introText.setText(
 }
 
 startDemo() {
-  this.rtText.setVisible(false);
+  //this.rtText.setVisible(false);
   this.introText?.setVisible(false);   // hide intro
   this.inDemo = true;                   // we are in demo mode
   this.resetTrialState({ forNewSession: true });
@@ -899,7 +898,7 @@ const config = {
     default: "arcade",
     arcade: {
       gravity: { y: speedDown },
-      debug: true,
+      debug: false,
     },
   },
   scene: [GameScene],
