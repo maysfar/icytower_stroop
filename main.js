@@ -100,7 +100,7 @@ class GameScene extends Phaser.Scene {
 
   create() {
 
-    this.BgMusic = this.sound.add("BgMusic");
+    this.BgMusic = this.sound.add("BgMusic",{loop: this.onTrialTimeout});
     this.stepSound = this.sound.add("stepSound");
     this.superSound = this.sound.add("superSound");
     this.hurryupSound = this.sound.add("hurryupSound");
@@ -574,7 +574,7 @@ endGamePhase() {
   localStorage.setItem("taskVersion", "game");
   exportCSV(this.trialData, filename).finally(() => {
     // tiny buffer so the browser settles
-    this.time.delayedCall(300, () => { window.location.href = "qualtrics.html"; });
+    this.time.delayedCall(300, () => { this.BgMusic.stop(); window.location.href = "qualtrics.html"; });
   });
 
 }
