@@ -54,16 +54,16 @@
         <h2>Study Information</h2>
         <p>
           You will complete two versions of the Stroop task (a classic text version and a game-like version).
-          You’ll identify the <b>ink color</b> of words as quickly and accurately as possible.
-          Total time: ~10–15 minutes.
+          You'll identify the <b>ink color</b> of words as quickly and accurately as possible.
+          Total time: ~10-15 minutes.
         </p>
         <h2>Before You Begin</h2>
         <ul>
           <li><b>Quiet place:</b> choose a calm, distraction-free environment. Silence your phone and close other apps/tabs.</li>
           <li><b>One sitting:</b> complete all parts in a single session without breaks to keep results consistent.</li>
-          <li><b>Do not navigate away:</b> <u>do not click the browser’s Back button or refresh/close the tab</u>. This will erase your progress.</li>
+          <li><b>Do not navigate away:</b> <u>do not click the browser's Back button or refresh/close the tab</u>. This will erase your progress.</li>
         </ul>
-        <div class="warning"><b>Warning:</b> Using the browser’s Back/Refresh will reset the task and delete your progress.</div>
+        <div class="warning"><b>Warning:</b> Using the browser's Back/Refresh will reset the task and delete your progress.</div>
         <h2>Data & Privacy</h2>
         <p>
           We collect task responses (accuracy, reaction times) and a participant ID you provide.
@@ -82,7 +82,7 @@
           <input type="checkbox" id="consentCheckbox" />
           I have read the information and I agree to participate.
         </label>
-        <label><input type="checkbox" class="prereq" /> I am in a quiet place and will complete the study in one sitting (~10–15 min).</label>
+        <label><input type="checkbox" class="prereq" /> I am in a quiet place and will complete the study in one sitting (~10-15 min).</label>
         <label><input type="checkbox" class="prereq" /> I understand I must not use the browser Back/Refresh or close the tab during the task.</label>
       </div>
 
@@ -150,13 +150,15 @@
       // Randomly choose task order
       const order = Math.random() < 0.5 ? "classicFirst" : "gameFirst";
       localStorage.setItem("taskOrder", order);
-      // Go!
+      
+      // redirect based on order
       if (order === 'classicFirst') {
         window.location.href = 'classic.html';
       } else {
         window.location.href = 'game.html';
       }
     });
+    
     function updateAgree() {
         const prereqsOk = Array.from(prereqCbs).every(cb => cb.checked);
         agreeBtn.disabled = !(consentCb.checked && prereqsOk);
