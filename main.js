@@ -60,7 +60,6 @@ class GameScene extends Phaser.Scene {
     this.nonResponseHandled = false;
     this.trialDeadline = null;
     this.timeoutActive = false;
-    this.rtStartTime = null;
 
 
     // --- Game Objects ---
@@ -533,7 +532,7 @@ _handleGameLanding(correct, jumpedLabel) {
     return;
   }
 
-  this.showSessionBreak(); // <-- Now this works because we built it
+  this.showSessionBreak(); 
   return;
   }
 
@@ -544,7 +543,6 @@ _handleGameLanding(correct, jumpedLabel) {
    */
 setNewStroopTrial() {
   this.reacted = false;
-  this.rtStartTime = null;
 
   // Show fixation cross "+"
   this.stroopText.setText("+").setFontSize(48).setColor("#ffffff").setFontSize("64px");
@@ -592,7 +590,6 @@ setNewStroopTrial() {
     }
   });
   // Now we start measuring RT
-  this.rtStartTime = this.time.now;// phaser time 
   this.rtStartHR = performance.now();// web time - higher resolotion
 
   if (this.trialDeadline) { this.trialDeadline.remove(false); }
@@ -763,7 +760,6 @@ onTrialTimeout() {
   // Remove all collision surfaces so gravity + scroll make the player fall
   this.cleanup();
 
-  // Do NOT advance trial here; let update() detect off-screen and call handleNonResponse()
 }
 
 
@@ -779,7 +775,6 @@ resetTrialState({ forNewSession = false } = {}) {
   this.timeoutActive = false;
   this.nonResponseHandled = false;
   this.reacted = false;
-  this.rtStartTime = null;
   this.feedbackText.setText("");
 
   if (forNewSession) {
@@ -807,9 +802,9 @@ fastForwardDownTo(yTarget, duration = FAST_DURATION) {
     duration,
     ease: 'Sine.easeOut',
     onUpdate: (tw) => {
-      const v = tw.getValue();// current tween val
+      const v = tw.getValue();
       const d = v - last;    // the amount to move since the last frame
-      last = v;//last tw val
+      last = v;
 
       // move everything down
       this.bg1.y += d;
@@ -913,7 +908,6 @@ startDemo() {
  */
 runDemoTrial() {
   this.reacted = false;      // allow input for this demo trial
-  this.rtStartTime = null;
   this.cleanup();
   this.CreateNewFloors();
   // fixation
@@ -986,7 +980,6 @@ runDemoTrial() {
             );
           }
 
-    // start demo timeout AFTER stimulus appears
   });
 }
 
