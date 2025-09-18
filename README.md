@@ -13,15 +13,15 @@ After each task, participants are redirected to Qualtrics for questionnaires.
 # Getting Started
 
 1. Clone the repository
-    'git clone https://github.com/maysfar/icytower_stroop.git'
+    `git clone https://github.com/maysfar/icytower_stroop.git`
 
-    'cd icytower_stroop'
+    `cd icytower_stroop`
 
 2. Install dependencies
-    'npm install'
+    `npm install`
 
 3. Run development server
-    'npm run dev'
+    `npm run dev`
 
     Then open the printed local URL in your browser.
 
