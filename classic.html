@@ -51,17 +51,47 @@
   { word: "GREEN",color: colors[0] },
   { word: "BOOK", color: colors[1] },
   { word: "BLUE", color: colors[2] }]; //determined trials for the demo (2 of each type)
+    const colorToLabel = (c) =>
+    (c === colors[0]) ? "R" :
+    (c === colors[1]) ? "G" :
+    (c === colors[2]) ? "B" : "";
 
+    const colorToName = (c) =>
+    (c === colors[0]) ? "RED" :
+    (c === colors[1]) ? "GREEN" :
+    (c === colors[2]) ? "BLUE" : "";
+
+    // ---- Timing constants (one place to tweak) ----
+    const DUR = { TRIAL: 2000, FEEDBACK: 500, FIXATION: 500 };
+
+    // Small sleep helper for precise waits
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+
+    /**
+ * Returns a single randomized Stroop stimulus.
+ * Chooses uniformly one of three types: congruent, incongruent, neutral (each ~33%).
+ * Output:
+ *   [StimulusWord, StimulusColor, StimulusType]
+ *     - StimulusWord: string (e.g., "RED", "APPLE")
+ *     - StimulusColor: string hex color (e.g., "#FF0000")
+ *     - StimulusType: "congruent" | "incongruent" | "neutral"
+ */
     function getRandom(){
+        // Draw a stimulus type: 0=congruent, 1=incongruent, 2=neutral
         let StimType = Math.floor(Math.random()*3),
             StimulusWord, StimulusColor, Stimulus;
 
+        // CONGRUENT: color word and ink color match (e.g., "RED" in red ink)
         if (StimType === 0) {
             let idx = Math.floor(Math.random()*3);
             StimulusWord  = colorWords[idx];
             StimulusColor = colors[idx];
             Stimulus = "congruent";
         }
+
+        // INCONGRUENT: color word and ink color differ (e.g., "RED" in blue ink)
+        // idx1 → word index; idx2 → color index (ensure idx1 !== idx2)
         else if (StimType === 1) {
             let idx1 = Math.floor(Math.random()*colorWords.length),
                 idx2 = Math.floor(Math.random()*3);
@@ -72,6 +102,8 @@
             StimulusColor = colors[idx2];
             Stimulus = "incongruent";
         }
+
+        // NEUTRAL: neutral word in any ink color (e.g., "APPLE" in red ink)
         else {
             let idx1 = Math.floor(Math.random()*neutralWords.length),
                 idx2 = Math.floor(Math.random()*3);
@@ -82,26 +114,43 @@
         return [StimulusWord, StimulusColor, Stimulus];
     }
 
+    /**
+     * Ends the current session and either:
+     *  - prompts the participant to continue to the next session (Spacebar), or
+     *  - finalizes the experiment (exports CSV, sets flags, redirects to Qualtrics).
+     *
+     * Flow:
+     *  1) Clear the canvas, then wait 1500 ms (blank screen).
+     *  2) Show "press Spacebar to continue" and attach a one-time Spacebar handler.
+     *  3) If all sessions are done (sessionNum >= sessions):
+     *       - Show a closing message.
+     *       - Optionally read URL params (pid/classic/game/Task_Version) and persist them.
+     *       - Persist completion flags in localStorage.
+     *       - Export results as CSV, then redirect to qualtrics.html.
+     *     Else:
+     *       - Start the next session.
+     */
+
     function endSession(){
         clearCanvas();
+        // Wait 1.5s with a blank screen before showing the prompt.
+
         setTimeout(() => {
             writeText("press Spacebar to continue");
+            // Ensure no previous Spacebar listeners remain.
+
             $(document).off('keydown.waitForSpace');
 
+            // Attach a one-time key listener for Spacebar (keyCode 32).
             $(document).on('keydown.waitForSpace', function onKey(e) {
             const isSpace = (e.keyCode === 32);
             if (!isSpace) return; 
 
+            // Detach the listener immediately to avoid duplicate triggers
             $(document).off('keydown.waitForSpace');
         
-                /*if (sessionNum >= sessions) {
-                    exportCSV(results, "classic_stroop.csv");
-                    clearCanvas();
-                    writeText("You finished the task. Thank you!");
-                    setTimeout(() => {
-                        window.location.href = "qualtrics.html";
-                    }, 2000); // 2 seconds delay
-                } */ if (sessionNum >= sessions) {
+                    // If the current session number has reached the total, finalize.
+                    if (sessionNum >= sessions) {
                         clearCanvas();
                         writeText("You finished the task. Thank you!");
                         const params = new URLSearchParams(location.search);
@@ -110,15 +159,17 @@
                         const gameFromUrl = params.get("game");
                         const taskVersionFromUrl = params.get("Task_Version");
                         
-
+                        // If pid is provided via URL, persist it + update the in-memory variable.
                         if (pidFromUrl)        {localStorage.setItem("participantId", pidFromUrl); participantId = pidFromUrl;}
-                        //if this is the first version the user completing we dont hace pidfromUr; we have the PI we set in the index thats why we need to keep these two
+                        //if this is the first version the user completing we dont have pidfromUr; we have the PI we set in the index thats why we need to keep these two
                         if (classicFromUrl)    localStorage.setItem("classicDone", classicFromUrl);
                         if (gameFromUrl)       localStorage.setItem("gameDone", gameFromUrl);
                         if (taskVersionFromUrl)localStorage.setItem("taskVersion", taskVersionFromUrl);
                         
+                        // Construct the CSV filename. Example: "classic_stroop_12345.csv"
                         const filename = `classic_stroop_${participantId}.csv`;
 
+                         // Mark classic as done and record the task version locally( useful for qualtrics questionaire)
                         localStorage.setItem("classicDone", "1");
                         localStorage.setItem("taskVersion", "classic");
 
@@ -129,32 +180,44 @@
                             window.location.href = "qualtrics.html";
                             }, 300);
                         });
-                    }
-               else {
-                    runSession();
-                } 
-            });
-        }, 1500); // 1 second delay
-    }
+                    } else {
+                        runSession();
+                    } 
+                   });
+                 }, 1500); // 1.5 second delay
+         }
 
 
+    /**
+     * Runs a single trial for up to `durationMs` milliseconds.
+     * Waits for whichever happens first:
+     *   1) participant presses a key  → resolves { reason: "keypress", key, ReactionTime }
+     *   2) time runs out (no response) → resolves { reason: "timeout" }
+     *
+     * Returns:
+     *   Promise<{ reason: "keypress", key: string, ReactionTime: number } |
+     *            { reason: "timeout" }>
+     */
     async function runTrial(durationMs) {
 
         const trialState = { timeoutId: null, keyListener: null };
-        const TrialStart = performance.now(); //timer
-
+        const TrialStart = performance.now(); //marks the exact moment the stimulus appeared (high-precision clock for RTs).
+        
+        // Clean up whichever pending listeners/timers are still active.
         function cleanup() {
             if (trialState.timeoutId !== null) {
                 clearTimeout(trialState.timeoutId);
                 trialState.timeoutId = null;
             }
             if (trialState.keyListener !== null) {
-                document.removeEventListener('keydown', trialState.keyListener);
+                document.removeEventListener('keydown', trialState.keyListener); //detach the listener, so further keys don’t affect this finished trial.
                 trialState.keyListener = null;
             }
         }
 
         //if no response
+          // Promise resolves if NO key is pressed within `durationMs`.
+
         const timeoutPromise = new Promise(resolve => {
             trialState.timeoutId = setTimeout(() => {
                 cleanup();
@@ -163,6 +226,8 @@
         });
 
         //if response
+          // Promise resolves if ANY key is pressed before timeout.
+
         const keyPromise = new Promise(resolve => {
             trialState.keyListener = function(e) {
                 cleanup();
@@ -173,191 +238,198 @@
             document.addEventListener('keydown', trialState.keyListener);
         });
 
-        return await Promise.race([ timeoutPromise, keyPromise ]);
+        return await Promise.race([ timeoutPromise, keyPromise ]); //Promise.race returns whichever settles first (timeout or keypress).
     }
 
+    /**
+     * Runs a full classic Stroop **session**:
+     *  - Presents `trials` stimuli (randomized via getRandom()).
+     *  - For each stimulus, waits up to 2000 ms for a keypress (R/G/B) via runTrial().
+     *  - Records response accuracy/RT (or timeout), shows brief feedback and fixation.
+     *  - After the loop, hands off to endSession() to either continue or finish/export.
+     *
+     * Notes:
+     *  - Keys are mapped to ink colors in the order RGB (see `colors` and `labels_order`).
+     *  - Feedback duration: 500 ms. Fixation cross (“+”): 500 ms.
+     *  - Timeout trials log response_label = "NR", rt_ms = null, and final_grade = -1.
+     */
     async function runSession() {
         
         sessionNum++;
         for (let trialNum = 0; trialNum < trials; trialNum++) {
 
             clearCanvas();
-            const [word, color, type] = getRandom();
+            const [word, color, type] = getRandom(); // type: "congruent" | "incongruent" | "neutral"
             writeText(word.toUpperCase(), color);
 
-            const result = await runTrial(2000);
-            let feedbackWord;
+            //  wait for keypress or timeout (uses DUR.TRIAL ms)
+            const result = await runTrial(DUR.TRIAL);
+
             if (result.reason === 'keypress') {
-                const pressed = (result.key || "").toUpperCase();
-                const expectedKey =
-                    (color === colors[0]) ? "R" :
-                    (color === colors[1]) ? "G" :
-                    (color === colors[2]) ? "B" : "";
-                
-                const isCorrect = (pressed === expectedKey);
-                
-                feedbackWord = isCorrect ? "Right!" : "Wrong!";
-                
-                results.push({
-                    ID: participantId,
-                    session: sessionNum,
-                    trial: trialNum + 1,             
-                    condition: type,                 
-                    word: word.toUpperCase(),
-                    ink_color:  (color === colors[0]) ? "RED" :
-                                (color === colors[1]) ? "GREEN" :
-                                (color === colors[2]) ? "BLUE" : "",
-                    labels_order: "RGB",
-                    correct_label: expectedKey,
-                    response_label: pressed,
-                    rt_ms: Math.round(result.ReactionTime || 0),
-                    accuracy: isCorrect ? 1 : 0,
-                    final_grade: isCorrect ? 1 : 0,
-                    outcome: "response",
-                    timestamp: new Date().toISOString()
+                const pressed = (result.key || "").toUpperCase();  // normalize to "R/G/B"
+                const expected = colorToLabel(color); // expected "R/G/B" from ink color
+
+                 // log the trial; returns true for correct answer, false otherwise
+                const correct  = pushResult({
+                participantId, sessionNum, trialNum, type, word, color,
+                expected, pressed, rt: result.ReactionTime, outcome: "response"
                 });
-                
-                clearCanvas();
-                writeText(feedbackWord);
-                await new Promise(r => setTimeout(r, 500));
-                clearCanvas();
-                writeText("+");
-                await new Promise(r => setTimeout(r, 500));
+
+                // Show feedback ("Right!" or "Wrong!") + fixation cross
+                await showFeedbackAndFixation(correct ? "Right!" : "Wrong!");
+
             } else {
-                    results.push({
-                        ID: participantId,
-                        session: sessionNum,
-                        trial: trialNum + 1,
-                        condition: type,
-                        word: word.toUpperCase(),
-                        ink_color:  (color === colors[0]) ? "red" :
-                                    (color === colors[1]) ? "green" :
-                                    (color === colors[2]) ? "blue" : "",
-                        labels_order: "RGB",
-                        correct_label:
-                                    (color === colors[0]) ? "R" :
-                                    (color === colors[1]) ? "G" :
-                                    (color === colors[2]) ? "B" : "",
-                        response_label: "NR",
-                        rt_ms: null,
-                        accuracy: 0,
-                        final_grade: -1,
-                        outcome: "no_response_timeout",
-                        timestamp: new Date().toISOString()
-                    });
-                clearCanvas();
-                writeText("+");
-                await new Promise(r => setTimeout(r, 500));
-            }
+                // Timeout / no response
+                pushResult({
+                    participantId, sessionNum, trialNum, type, word, color,
+                    expected: colorToLabel(color), pressed: "NR", rt: null, outcome: "timeout"
+                });
+                    await showFixationOnly(); // no feedback, just fixation
+
+                }
         }
+
+        // session finished -> either continue or export/redirect (handled inside endSession)
         endSession();
     }
 
-    async function runDemoSession() {
-        for (let i = 0; i < 3; i++){
-            const { word, color } = demoTrials[i];
-            const txt = "In this example, the color of the word is: " + colorWords[i] + ".";
-            const instruc = "Therefore, press " + colorWords[i][0].toUpperCase() + " for the right response.";
-            const lines = [txt, instruc, word];
-            const lineColor = ["#FFFFFF", "#FFFFFF", color];
-            const lineFont = ["bold 40px Arial", "bold 40px Arial", "bold 48px Arial"]
-            const lineHeight = 50; 
-            const startY = window.canvas.height/2 - (2 * lineHeight);
-            const expectedKey =
-                color === colors[0] ? "r" :
-                color === colors[1] ? "g" :
-                color === colors[2] ? "b" : "" ;
-            
-            let correct = false;
+    // Centralized logger to keep fields consistent
+    // Appends one trial to `results` in a consistent schema.
+    // Returns true if correct (when outcome === "response"), else false.
+    function pushResult({
+        participantId, sessionNum, trialNum, type, word, color,
+        expected, pressed, rt, outcome
+        }) {
+        const base = {
+            ID: participantId,
+            session: sessionNum,
+            trial: trialNum + 1,
+            condition: type,  // congruent/incongruent/neutral
+            word: word.toUpperCase(),
+            ink_color: colorToName(color),  // "RED"/"GREEN"/"BLUE"
+            labels_order: "RGB",
+            correct_label: expected, // "R"/"G"/"B"
+            timestamp: new Date().toISOString()
+        };
 
-            while (!correct){
-                clearCanvas();
-                lines.forEach((text, j) => {
-                    window.ctx.fillStyle = lineColor[j]
-                    window.ctx.font = lineFont[j];
-                    window.ctx.textAlign = "center";
-                    window.ctx.fillText(
-                    text,
-                    window.canvas.width/2,
-                    startY + j * lineHeight
-                    );
-                });
-                const result = await runTrial(15000);
-
-                if (result.reason !== 'keypress') {
-                    clearCanvas();
-                    writeText( "Try again.");
-                    await new Promise(r => setTimeout(r, 1000));
-                    clearCanvas();
-                    writeText("+");
-                    await new Promise(r => setTimeout(r, 500));
-                    continue; 
-                }
-
-                const key = (result.key || "").toLowerCase();
-                correct = key === expectedKey;
-
-                if (!correct){
-                    clearCanvas();
-                    writeText( "wrong answer, Try again.");
-                    await new Promise(r => setTimeout(r, 2000));
-                } else {
-                    clearCanvas();
-                    writeText( "Right!");
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-
-                clearCanvas();
-                writeText("+");
-                await new Promise(r => setTimeout(r, 500));
-            }  
+        if (outcome === "response") {
+            const isCorrect = (pressed === expected);
+            results.push({
+            ...base,
+            response_label: pressed,
+            rt_ms: Math.round(rt || 0), // ms; 0 if missing
+            accuracy: isCorrect ? 1 : 0,
+            final_grade: isCorrect ? 1 : 0,
+            outcome
+            });
+            return isCorrect;
+        } else {
+            results.push({
+            ...base,
+            response_label: "NR", // no response
+            rt_ms: null,
+            accuracy: 0,
+            final_grade: -1, // -1 indicates no response
+            outcome: "no_response_timeout"
+            });
+            return false;
+        }
+        }
+    
+        // Shows a feedback message, then a "+" fixation, with the defined delays.
+    async function showFeedbackAndFixation(msg , msgMs = DUR.FEEDBACK) {
+        clearCanvas();
+        writeText(msg);
+        await sleep(msgMs);
+        clearCanvas();
+        writeText("+");
+        await sleep(DUR.FIXATION);
         }
 
+    // Shows only the "+" fixation for the defined duration.
+    async function showFixationOnly() {
+            clearCanvas();
+            writeText("+");
+            await sleep(DUR.FIXATION);
+        }
+
+    
+    // Runs the demo: first 3 guided examples (with on-screen instructions),
+    // then the remaining demo items as practice. Each item repeats until the participant presses the correct key ('r'/'g'/'b'). Timeouts ask to try again.
+    async function runDemoSession() {
+        const GUIDED_WINDOW_MS   = 15000; // longer window for guided examples
+        const PRACTICE_WINDOW_MS = 2000; // normal window for practice trials
+
+        // Guided items (indices 0..2) with on-screen instructions
+        for (let i = 0; i < 3; i++){
+            const { word, color } = demoTrials[i];
+            await repeatUntilCorrect({
+            draw: () => drawGuidedExample(i, word, color),
+            expectedKey: colorToLabel(color), // "R/G/B"
+            windowMs: GUIDED_WINDOW_MS
+            });
+        }
+
+        // Practice items (indices 3..end), just the colored word
         for (let i = 3; i < demoTrials.length; i++) {
             const { word, color } = demoTrials[i];
-            const expectedKey =
-                color === colors[0] ? "r" :
-                color === colors[1] ? "g" :
-                color === colors[2] ? "b" : "" ;
-            
-            let correct = false;
+            await repeatUntilCorrect({
+            draw: () => writeText(word, color),
+            expectedKey: colorToLabel(color), // "R/G/B"
+            windowMs: PRACTICE_WINDOW_MS
+            });
+        }
 
-            while (!correct){
-                clearCanvas();
-                writeText(word, color);
-                const result = await runTrial(2000);
-
-                if (result.reason !== 'keypress') {
-                    clearCanvas();
-                    writeText( "Try again.");
-                    await new Promise(r => setTimeout(r, 1000));
-                    clearCanvas();
-                    writeText("+");
-                    await new Promise(r => setTimeout(r, 500));
-                    continue; 
-                }
-
-                const key = (result.key || "").toLowerCase();
-                correct = key === expectedKey;
-
-                if (!correct){
-                    clearCanvas();
-                    writeText( "wrong answer, Try again.");
-                    await new Promise(r => setTimeout(r, 2000));
-                } else {
-                    clearCanvas();
-                    writeText( "Right!");
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-
-                clearCanvas();
-                writeText("+");
-                await new Promise(r => setTimeout(r, 500));
-            } 
         endDemoSession();
+
+    } 
+
+    // Draw the 3-line guided example (2 instruction lines + colored word)
+    function drawGuidedExample(i, word, color) {
+        const txt    = "In this example, the color of the word is: " + colorWords[i] + ".";
+        const instrc = "Therefore, press " + colorWords[i][0].toUpperCase() + " for the right response.";
+        const lines  = [txt, instrc, word];
+        const lineColor = ["#FFFFFF", "#FFFFFF", color];
+        const lineFont  = ["bold 40px Arial", "bold 40px Arial", "bold 48px Arial"];
+        const lineHeight = 50;
+        const startY = window.canvas.height/2 - (2 * lineHeight);
+
+        clearCanvas();
+        lines.forEach((text, j) => {
+            window.ctx.fillStyle = lineColor[j];
+            window.ctx.font = lineFont[j];
+            window.ctx.textAlign = "center";
+            window.ctx.fillText(text, window.canvas.width/2, startY + j * lineHeight);
+        });
+    }
+
+
+    // Core loop: draw → wait → feedback → repeat until correct
+    async function repeatUntilCorrect({ draw, expectedKey, windowMs, wrongMs = 2000, rightMs = 1000 }) {
+        let correct = false;
+        while (!correct) {
+            draw();
+
+            const result = await runTrial(windowMs); // wait for keypress or timeout
+
+            if (result.reason !== 'keypress') {
+            // no response → short prompt then fixation
+                await showFeedbackAndFixation("Try again.", 1000);
+                continue;
+            }
+
+            const key = (result.key || "").toUpperCase(); // normalize pressed key to "R/G/B"
+            correct = (key === expectedKey);              // expectedKey is "R/G/B" from colorToLabel
+
+            if (!correct) {
+            await showFeedbackAndFixation("wrong answer, Try again.", wrongMs);
+            } else {
+            await showFeedbackAndFixation("Right!", rightMs);
+            }
         }
     }
 
+    // Final demo screen; waits for Spacebar, then starts real session.
     function endDemoSession() {
         clearCanvas();
         const lines = ["Demo complete.", "Press Spacebar to start the real task"];
@@ -381,15 +453,20 @@
         });
         }
 
+    // Clears entire canvas.
     function clearCanvas(){
         window.ctx.fillStyle = "#FFFFFF";
         window.ctx.clearRect(0, 0, window.canvas.width, window.canvas.height);
     }
+    
+    // Draws centered text in the current color (default white).
     function writeText(text, color = "#FFFFFF"){
         clearCanvas();
         window.ctx.fillStyle = color;
         window.ctx.fillText(text, window.canvas.width/2, window.canvas.height/2);
     }
+    
+    // One-time canvas/ctx setup (font + alignment).
     function setup(){
         window.canvas = document.getElementById("experiment");
         window.ctx = window.canvas.getContext("2d");
@@ -397,6 +474,7 @@
         window.ctx.textAlign = "center";
     }
 
+    // Initial instructions before demo/session
     function instructions() {
         clearCanvas();
 
@@ -419,6 +497,7 @@
             );
         });
 
+          // gate progress on Spacebar; clean up previous handlers if any
         $(document).off('keydown.waitForSpace');
         $(document).on('keydown.waitForSpace', function onKey(e) {
         if (e.keyCode !== 32) return; 

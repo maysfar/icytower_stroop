@@ -1,83 +1,88 @@
+/**
+ * Gamified Stroop Task using Phaser
+ * - Player jumps to platforms based on color-word mapping
+ * - Includes demo and main experiment phases
+ * - Data is exported as CSV at the end
+ */
+
 import "./style.css";
 import Phaser from "phaser";
 import { exportCSV } from "./exportCSV.js";
 
-const sizes = {
-  width: 1000,
-  height: 700,
-};
-const step_sizes = {
-  width: 40,
-  height: 150,
-};
-const step_locations = {
-  x1: 200,
-  x2: 500,
-  x3:800
-};
+// --- Game Display Constants ---
+const sizes = { width: 1000, height: 700 };
+const step_sizes = { width: 40, height: 150 };
+const step_locations = { x1: 200, x2: 500, x3: 800 };
 
+// --- Game Physics ---
 const bgScrollSpeed = 0.9;
-const speedDown = 300
-const jumpVelocity = -400;
-const TRIAL_MS = 2000; //trial length
-const FAST_TARGET_Y =200 ;   // stroop text is on 50 so this is 150 bellow we good
-const FAST_DURATION = 500;   // the same delay between + and stim
-const COLORS = ["red", "green", "blue"];        // ink colors
-const COLOR_HEX_MAP = {
-  red:   "#FF0000",
-  green: "#00FF00",
-  blue:  "#0000FF"
-};
-const COLOR_WORDS = ["RED", "GREEN", "BLUE"];   // text for congruent/incongruent
+const speedDown = 300; // Player falling speed
+
+// --- Timing ---
+const TRIAL_MS = 2000; // Max time to respond (ms)
+const FAST_TARGET_Y = 200; // Quick scroll target Y for platforms
+const FAST_DURATION = 500; // Time for quick scroll (ms)
+
+// --- Stroop Stimulus ---
+const COLORS = ["red", "green", "blue"]; // Ink colors
+const COLOR_HEX_MAP = { red: "#FF0000", green: "#00FF00", blue: "#0000FF" };
+const COLOR_WORDS = ["RED", "GREEN", "BLUE"]; // Congruent/incongruent words
 const NEUTRAL_WORDS = ["APPLE", "BIKE", "HOUSE", "BOOK", "TREE", "CAR", "DOG", "CAT"];
 
-const colors = ["#FF0000", "#00FF00", "#0000FF"];
 const demoTrials = [
-  { word: "RED",  color: colors[0] },
-  { word: "BLUE", color: colors[1] },
-  { word: "TREE", color: colors[2] },
-  { word: "GREEN",color: colors[0] },
-  { word: "BOOK", color: colors[1] },
-  { word: "BLUE", color: colors[2] },
+  { word: "RED",  color: COLOR_HEX_MAP.red },
+  { word: "BLUE", color: COLOR_HEX_MAP.green },
+  { word: "TREE", color: COLOR_HEX_MAP.blue },
+  { word: "GREEN",color: COLOR_HEX_MAP.red },
+  { word: "BOOK", color:COLOR_HEX_MAP.green },
+  { word: "BLUE", color: COLOR_HEX_MAP.blue },
 ];
 
 
 
+/**
+ * Main game scene for Stroop task.
+ * Handles demo, main trials, scoring, and data export.
+ */
 class GameScene extends Phaser.Scene {
   constructor() {
     super("scene-game");
-    this.sessionIndex = 0;       // Current session number (starts at 0)
-    this.trialIndex = 0;         // Current trial number within the session
-    this.trialsPerSession = 30;   // How many trials in each session
-    this.totalSessions = 4;      // How many sessions in total
-    this.players
-    this.cursor
-    this.playerSpeed=speedDown+50
-    this.target
-    this.points = 0
-    this.platforms
-    this.floors
-    this.floor
-    this.step1
-    this.step2
-    this.step3
-    this.isPaused = true;
-    this.colorMap = {
-      red: "R",
-      green: "G",
-      blue: "B"
-    };
-    this.rtStartTime = null;
-    this.reacted = false;
-    this.sessionLabelOrder = ["R", "G", "B"]; // default order
-    this.nonResponseHandled = false;
 
+    // --- Session & Trial State ---
+    this.sessionIndex = 0;
+    this.trialIndex = 0;
+    this.trialsPerSession = 30;
+    this.totalSessions = 4;
+
+    // --- Flow & State ---
+    this.isPaused = true;
+    this.reacted = false;
+    this.nonResponseHandled = false;
+    this.trialDeadline = null;
+    this.timeoutActive = false;
+
+
+    // --- Game Objects ---
+    this.players;
+    this.cursor;
+    this.target;
+    this.platforms;
+    this.floors;
+    this.floor;
+    this.step1;
+    this.step2;
+    this.step3;
+
+    // --- Color Mapping & Labels ---
+    this.colorMap = { red: "R", green: "G", blue: "B" };
+    this.sessionLabelOrder = ["R", "G", "B"]; // default order
+
+    // --- Sounds ---
     this.BgMusic;
     this.stepSound;
     this.superSound;
     this.hurryupSound;
-    this.trialDeadline = null;   
-    this.timeoutActive = false; 
+
     // --- DEMO (Step 1) ---
     this.inDemo = true;               // start in demo mode
     this.demoIndex = 0;               // single demo trial
@@ -88,6 +93,9 @@ class GameScene extends Phaser.Scene {
 
   }
 
+  /**
+   * Preload assets (images, sounds).
+   */
   preload() {
     this.load.image("bg","/assets/background.png");
     this.load.image("player","/assets/player_1.png");
@@ -98,21 +106,26 @@ class GameScene extends Phaser.Scene {
     this.load.audio("hurryupSound", "/assets/hurryup.mp3");
   }
 
+  /**
+   * Create game objects and UI elements.
+   */
   create() {
 
-    this.BgMusic = this.sound.add("BgMusic");
+    // --- Sounds ---
+    this.BgMusic = this.sound.add("BgMusic", { loop: this.onTrialTimeout });
     this.stepSound = this.sound.add("stepSound");
     this.superSound = this.sound.add("superSound");
     this.hurryupSound = this.sound.add("hurryupSound");
     this.BgMusic.play();
 
-
+    // --- Backgrounds ---
     //we use two bg elements to alternate between them so we can scroll down
     this.bg1 = this.add.image(0, 0, "bg").setOrigin(0, 0).setDisplaySize(sizes.width, sizes.height);
     this.bg2 = this.add.image(0, -sizes.height, "bg").setOrigin(0, 0).setDisplaySize(sizes.width, sizes.height);
 
+    // --- Steps & Floors ---
     this.platforms = this.physics.add.staticGroup();
-    this.floors  = this.physics.add.staticGroup();
+    this.floors = this.physics.add.staticGroup();
     this.floor = this.floors.create(sizes.width / 2, sizes.height - 150, "step");
     this.floor.setDisplaySize(sizes.width, step_sizes.width).refreshBody(); // make it wide like the screen
 
@@ -120,6 +133,8 @@ class GameScene extends Phaser.Scene {
     this.step1 = this.platforms.create(step_locations.x1, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     this.step2 = this.platforms.create(step_locations.x2, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     this.step3 = this.platforms.create(step_locations.x3, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+    
+    // --- Player ---
     // Player in center above the floor
     this.player = this.physics.add.sprite(sizes.width / 2, sizes.height - 250, "player");
     this.player.setScale(0.5); 
@@ -130,7 +145,7 @@ class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.platforms, this.handleStepLanding, null, this);
     this.physics.add.collider(this.player, this.floors);
 
-    //storing data
+    // --- Data ---
     this.trialData = [];
     this.currentTrial = null;
     this.rtStartHR = null;
@@ -141,81 +156,78 @@ class GameScene extends Phaser.Scene {
     color: "#fff"
     }).setOrigin(0.5).setDepth(1000);
     this.stroopText.setBackgroundColor("#000000")
+
     this.score = 0;
-  this.scoreText = this.add.text(sizes.width - 20, 20, "Score: 0", {
-    fontSize: "24px",
-    color: "#fff"
-  }).setOrigin(1, 0);
+    this.scoreText = this.add.text(sizes.width - 20, 20, "Score: 0", {
+      fontSize: "24px",
+      color: "#fff"
+    }).setOrigin(1, 0);
 
     this.cursor = this.input.keyboard.createCursorKeys();
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.rtText = this.add.text(sizes.width - 20, 50, "RT: -", {
-    fontSize: "20px",
-    color: "#fff"
-  }).setOrigin(1, 0);
 
-  this.feedbackText = this.add.text(sizes.width / 2, sizes.height / 2, "", {
-  fontSize: "36px",
-  color: "#ff0000",
-  fontStyle: "bold"
-}).setOrigin(0.5)
-.setDepth(9999); ;
+    //RT display (we don't want the participant to see it during the task kept here for debugging)
+    //this.rtText = this.add.text(sizes.width - 20, 50, "RT: -", {
+    //fontSize: "20px",
+    //color: "#fff"
+    //}).setOrigin(1, 0);
 
-// existing stroopText...
-this.stroopText.setText("Press Space to start").setFontSize(48).setColor("#ffffffff");
-this.stroopText.setVisible(true);
+    this.feedbackText = this.add.text(sizes.width / 2, sizes.height / 2, "", {
+      fontSize: "36px",
+      color: "#ff0000",
+      fontStyle: "bold"
+    }).setOrigin(0.5).setDepth(9999); ;
 
-// NEW: introText (wrapped, anchored to top)
-this.introText = this.add.text(sizes.width / 2, 8, "", {
-  fontFamily: "Arial",
-  fontSize: "28px",
-  fontStyle: "bold",
-  color: "#ffffff",
-  align: "center",
-  wordWrap: { width: sizes.width * 0.9 }
-})
-.setOrigin(0.5, 0)          // top-center, so it won’t get clipped
-.setDepth(1001)
-.setBackgroundColor("#000000")
-.setPadding(8, 8, 8, 8)
-.setVisible(false);
+    // existing stroopText...
+    this.stroopText.setText("Press Space to start").setFontSize(48).setColor("#ffffffff");
+    this.stroopText.setVisible(true);
 
-this.demoHintText = this.add.text(sizes.width / 2, sizes.height / 2 - 140, "", {
-  fontFamily: "Arial",
-  fontSize: "28px",
-  fontStyle: "bold",
-  color: "#ffffff",
-  align: "center",
-  wordWrap: { width: sizes.width * 0.9 }
-})
-.setOrigin(0.5)
-.setDepth(1002)
-.setBackgroundColor("#000000")
-.setPadding(8, 8, 8, 8)
-.setVisible(false);
+    //introText (wrapped, anchored to top)
+    this.introText = this.add.text(sizes.width / 2, 8, "", {
+      fontFamily: "Arial",
+      fontSize: "28px",
+      fontStyle: "bold",
+      color: "#ffffff",
+      align: "center",
+      wordWrap: { width: sizes.width * 0.9 }
+    })
+    .setOrigin(0.5, 0)          
+    .setDepth(1001)
+    .setBackgroundColor("#000000")
+    .setPadding(8, 8, 8, 8)
+    .setVisible(false);
 
-// show the intro now
-this.showDemoIntro();
+    this.demoHintText = this.add.text(sizes.width / 2, sizes.height / 2 - 140, "", {
+      fontFamily: "Arial",
+      fontSize: "28px",
+      fontStyle: "bold",
+      color: "#ffffff",
+      align: "center",
+      wordWrap: { width: sizes.width * 0.9 }
+    })
+    .setOrigin(0.5)
+    .setDepth(1002)
+    .setBackgroundColor("#000000")
+    .setPadding(8, 8, 8, 8)
+    .setVisible(false);
 
-}
+    // --- Show Demo Intro ---
+    this.showDemoIntro();
+
+    }
 
 
 
+  /**
+   * Start the main game (after demo).
+   */
 startGame() {
   this.inDemo = false;
-  this.rtText.setVisible(true).setText("RT: -");
-  this.introText?.setVisible(false);   // NEW
-    this.stroopText
-    .setVisible(true)
-    .setText("")
-    .setOrigin(0.5, 0.5)
-    .setPosition(sizes.width / 2, 50)
-    .setBackgroundColor("#000000")
-    .setFontSize(48)
-    .setColor("#ffffffff")
-    .setStyle({ wordWrap: { width: 0 } });
+  //this.rtText.setVisible(true).setText("RT: -"); we don't want the participant to see it
+  this.introText?.setVisible(false); 
+  this.stroopText.setVisible(true).setText("").setOrigin(0.5, 0.5).setPosition(sizes.width / 2, 50)
+    .setBackgroundColor("#000000").setFontSize(48).setColor("#ffffffff").setStyle({ wordWrap: { width: 0 } });
   this.feedbackText.setText("").setVisible(true);
-  this.rtText.setText("RT: -");
   this.resetTrialState();
   this.isPaused = false;
   this.physics.resume();
@@ -227,8 +239,11 @@ startGame() {
 
 
 
+  /**
+   * Main update loop: handles input, scrolling, and trial logic.
+   */
 update() {
-    // --- handle Space while paused ---
+    // --- Handle Space while paused ---
   if (this.isPaused && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
     const text = this.stroopText.text;
 
@@ -245,40 +260,54 @@ update() {
     }
   }
   if (this.isPaused) return;
-  const { left, right, up } = this.cursor;
+
+    // --- Scroll backgrounds and platforms ---
+  this._scrollGameObjects();
+
+    // --- Handle player input ---
+
+  if (!this.reacted && !this.isPaused && this.stroopText.text != "+") {
+    if (Phaser.Input.Keyboard.JustDown(this.cursor.left)) {
+      this.handleResponse(this.step1);
+    } else if (Phaser.Input.Keyboard.JustDown(this.cursor.up)) {
+      this.handleResponse(this.step2);
+    } else if (Phaser.Input.Keyboard.JustDown(this.cursor.right)) {
+      this.handleResponse(this.step3);
+    }
+  }
+  // --- Detect if player fell off screen or platforms scrolled out ---
+  this._checkPlayerFall();
+  }
+
+_scrollGameObjects() {
   this.bg1.y += bgScrollSpeed;
   this.bg2.y += bgScrollSpeed;
   this.player.y += bgScrollSpeed;
   this.platforms.children.iterate((child) => {
-  child.y += bgScrollSpeed;
-  child.body.y += bgScrollSpeed;
- if (child.labelText) {
-    child.labelText.y += bgScrollSpeed;
-  }
+    child.y += bgScrollSpeed;
+    child.body.y += bgScrollSpeed;
+    if (child.labelText) {
+        child.labelText.y += bgScrollSpeed;
+    }
   })
 
   this.floors.children.iterate((child) => {
-  child.y += bgScrollSpeed;
-  child.body.y += bgScrollSpeed;
+    child.y += bgScrollSpeed;
+    child.body.y += bgScrollSpeed;
   })
 
   if (this.bg1.y >= sizes.height) {
-  this.bg1.y = this.bg2.y - sizes.height;
+    this.bg1.y = this.bg2.y - sizes.height;
   }
   if (this.bg2.y >= sizes.height) {
-  this.bg2.y = this.bg1.y - sizes.height;
-  }
-  
-if (!this.reacted && !this.isPaused && this.stroopText.text != "+") {
-  if (Phaser.Input.Keyboard.JustDown(this.cursor.left)) {
-    this.handleResponse(this.step1);
-  } else if (Phaser.Input.Keyboard.JustDown(this.cursor.up)) {
-    this.handleResponse(this.step2);
-  } else if (Phaser.Input.Keyboard.JustDown(this.cursor.right)) {
-    this.handleResponse(this.step3);
-  }
+    this.bg2.y = this.bg1.y - sizes.height;
+  } 
 }
 
+/**
+ * Checks if player or platforms have fallen off screen and handles accordingly.
+ */
+_checkPlayerFall() {
 const firstPlatform = this.platforms.getChildren()[0];
 if (
   this.player.y - this.player.displayHeight / 2 > sizes.height ||
@@ -309,7 +338,10 @@ if (
 
 
 }
-
+  /**
+   * Handle player response (jump to platform).
+   * @param {Phaser.GameObjects.Sprite} step - The platform chosen.
+   */
 handleResponse(step) {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
   if (this.reacted) return;
@@ -319,7 +351,7 @@ handleResponse(step) {
   //  Only show/record RT in the real task
   if (!this.inDemo && this.rtStartHR != null) {
     const rt = performance.now() - this.rtStartHR;
-    this.rtText.setText("RT: " + Math.round(rt) + " ms");
+    //this.rtText.setText("RT: " + Math.round(rt) + " ms");
     if (this.currentTrial && this.currentTrial.outcome === "pending") {
       this.currentTrial.response_label = step.label;
       this.currentTrial.rt_ms = Math.round(rt);
@@ -334,6 +366,10 @@ handleResponse(step) {
 }
 
 
+  /**
+   * Animate player jumping to a step.
+   * @param {Phaser.GameObjects.Sprite} step
+   */
 arcJumpToStep(step) {
   const startX = this.player.x;
   const startY = this.player.y;
@@ -374,115 +410,139 @@ arcJumpToStep(step) {
   });
 }
 
+
+  /**
+   * Handle landing on a step (score, feedback, next trial).
+   */
 handleStepLanding = (player, step) => {
   if(player.body.touching.down && step.body.touching.up ){
     this.stepSound.play();
-    step.setDisplaySize(sizes.width,step_sizes.width).refreshBody()
-    if (step.labelText) {
-      step.labelText.destroy();
-    }
-    this.floor=step
-    this.platforms.remove(step,false);
-    this.floors.add(step)
-    step.x=sizes.width/2
-    step.refreshBody()
-    
-    const toRemove = [];
+    this._movePlayerToStep(step);
 
-    this.platforms.children.iterate((child) => {
+    const jumpedLabel = step.label;
+    const correct = (jumpedLabel === this.currentCorrectLetter) ? 1:0;
+
+    // --- DEMO branch: finish or retry, don't advance real game ---
+    if (this.inDemo) {
+      this._handleDemoLanding(correct);
+      return;
+    }
+
+    this._handleGameLanding(correct, jumpedLabel);
+  }
+};
+
+
+/**
+ * Moves player to the landed step and cleans up old platforms.
+ */
+_movePlayerToStep(step) {
+  // Make landed step the new floor
+  step.setDisplaySize(sizes.width, step_sizes.width).refreshBody();
+  if (step.labelText) step.labelText.destroy();
+  this.floor = step;
+  this.platforms.remove(step, false);
+  this.floors.add(step);
+  step.x = sizes.width / 2;
+  step.refreshBody();
+
+  // Remove other platforms
+  const toRemove = [];
+
+  this.platforms.children.iterate((child) => {
       if (child !== this.floor) {
         toRemove.push(child);
       }
     });
 
-    toRemove.forEach((child) => {
-      if (child.labelText) {
-      child.labelText.destroy()
-    }
-    child.destroy();
+  toRemove.forEach((child) => {
+    if (child.labelText) {
+    child.labelText.destroy();}
     
-    });
+    child.destroy();
+  });
+  this.platforms.clear(false);
+  this.physics.world.step(0);
 
-    this.platforms.clear(false); // clean up group reference
-    this.physics.world.step(0); 
-    this.step1 = this.platforms.create(step_locations.x1, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
-    this.step2 = this.platforms.create(step_locations.x2, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
-    this.step3 = this.platforms.create(step_locations.x3, step.y-200, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
-    const jumpedLabel = step.label;
-    const correct = (jumpedLabel === this.currentCorrectLetter) ? 1:0;
-    // --- DEMO branch: finish or retry, don't advance real game ---
-    if (this.inDemo) {
-    // if you ever add a demo timer later, clear it
-      if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
+  // Create new steps above
+  const newY = step.y - 200;
+  this.step1 = this.platforms.create(step_locations.x1, newY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+  this.step2 = this.platforms.create(step_locations.x2, newY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+  this.step3 = this.platforms.create(step_locations.x3, newY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
+}
 
-        if (correct) {
-          this.feedbackText.setText("Right!").setStyle({ color: "#ffffff" }).setVisible(true);
-          this.time.delayedCall(800, () => {
-          this.feedbackText.setVisible(false);
-          this.demoIndex += 1; // only one demo trial for now
-          if (this.demoIndex >= this.demoTrials.length) {
-              this.cleanup();
-              this.CreateNewFloors();
-            this.inDemo = false;              // demo is over
-            this.isPaused = true;             // pause and show continue prompt
-            this.stroopText
-            .setText("Demo complete\nPress Space to start")
-            .setFontSize(44)
-            .setColor("#ffffffff")
-            .setVisible(true);
-          } else { if (this.demoHintText) this.demoHintText.setVisible(false);
-                      this.runDemoTrial(); } // show next demo trial (if you add more later)
 
-            });
-          } else {
-          this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
-          this.time.delayedCall(1000, () => {
-          this.feedbackText.setVisible(false);
-          if (this.demoHintText) this.demoHintText.setVisible(false);
-          this.runDemoTrial();              // show the same demo stimulus again
-          });
-          }
-          return; 
-          }
+/**
+ * Handles landing logic for demo trials.
+ */
+_handleDemoLanding(correct) {
 
+  if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
     if (correct) {
-      this.score += 1;
-      this.scoreText.setText("Score: " + this.score);
-    }
+      this.feedbackText.setText("Right!").setStyle({ color: "#ffffff" }).setVisible(true);
+      this.time.delayedCall(800, () => {
+      this.feedbackText.setVisible(false);
+      this.demoIndex += 1; 
+      if (this.demoIndex >= this.demoTrials.length) {
+          this.cleanup();
+          this.CreateNewFloors();
+          this.inDemo = false;              // demo is over
+          this.isPaused = true;             // pause and show continue prompt
+          this.stroopText.setText("Demo complete\nPress Space to start").setFontSize(44).setColor("#ffffffff").setVisible(true);
+        } else { if (this.demoHintText) this.demoHintText.setVisible(false);
+                  this.runDemoTrial(); } // show next demo trial (if you add more later)
 
-    if( this.currentTrial){
-      this.currentTrial.accuracy = correct;
-      this.currentTrial.final_grade = correct ? 1 : 0; 
-      this.currentTrial.outcome = "response";
-      this.currentTrial.response_label ??= jumpedLabel;// if not null fill this value
-      this.trialData.push(this.currentTrial);
-      this.currentTrial = null;
-    }
+      });
+      } else {
+      this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
+      this.time.delayedCall(1000, () => {
+      this.feedbackText.setVisible(false);
+      if (this.demoHintText) this.demoHintText.setVisible(false);
+      this.runDemoTrial();              // show the same demo stimulus again
+      });
+      }
+  }
+
+      /**
+ * Handles landing logic for main game trials.
+ */
+_handleGameLanding(correct, jumpedLabel) {
+  if (correct) {
+    this.score += 1;
+    this.scoreText.setText("Score: " + this.score);
+  }
+
+  if( this.currentTrial){
+    this.currentTrial.accuracy = correct;
+    this.currentTrial.final_grade = correct ? 1 : 0; 
+    this.currentTrial.outcome = "response";
+    this.currentTrial.response_label ??= jumpedLabel;// if not null fill this value
+    this.trialData.push(this.currentTrial);
+    this.currentTrial = null;
+  }
 // Move to the next trial or session
-this.trialIndex += 1;
+  this.trialIndex += 1;
 
-if (this.trialIndex >= this.trialsPerSession) {
-  this.sessionIndex += 1;
-  this.trialIndex = 0;
+  if (this.trialIndex >= this.trialsPerSession) {
+    this.sessionIndex += 1;
+    this.trialIndex = 0;
 
   if (this.sessionIndex >= this.totalSessions) {
     this.endGamePhase(); // End game if all sessions done
     return;
   }
 
-  this.showSessionBreak(); // <-- Now this works because we built it
+  this.showSessionBreak(); 
   return;
-}
-
-this.setNewStroopTrial();
   }
 
+  this.setNewStroopTrial();}
 
-};
-
+  /**
+   * Set up a new Stroop trial (show stimulus, start timer).
+   */
 setNewStroopTrial() {
   this.reacted = false;
-  this.rtStartTime = null;
 
   // Show fixation cross "+"
   this.stroopText.setText("+").setFontSize(48).setColor("#ffffff").setFontSize("64px");
@@ -494,7 +554,7 @@ setNewStroopTrial() {
   const stim = this.pickStroopStimulus();
   this.currentColor = stim.inkColor;
   this.currentCorrectLetter = this.colorMap[stim.inkColor];
-  this.currentCondition = stim.condition; // handy if you log data
+  this.currentCondition = stim.condition;
   this.stroopText.setText(stim.wordText).setColor(COLOR_HEX_MAP[stim.inkColor]);
 
   this.currentTrial = {
@@ -514,33 +574,37 @@ setNewStroopTrial() {
   }
     
   const labels = this.sessionLabelOrder;
-    let i = 0;
-    this.platforms.children.iterate((step) => {
-      if (step !== this.floor) {
-        if (!step.labelText) {
-          step.labelText = this.add.text(0, 0, "", {
-            fontSize: "32px",
-            color: "#fff"
-          }).setOrigin(0.5);
-        }
-        step.label = labels[i];
-        step.labelText.setText(step.label);
-        step.labelText.setPosition(step.x, step.y - 30);
-        i++;
+  let i = 0;
+  this.platforms.children.iterate((step) => {
+    if (step !== this.floor) {
+      if (!step.labelText) {
+        step.labelText = this.add.text(0, 0, "", {
+          fontSize: "32px",
+          color: "#fff"
+        }).setOrigin(0.5);
       }
-    });
-    // Now we start measuring RT
-    this.rtStartTime = this.time.now;// phaser time 
-    this.rtStartHR = performance.now();// web time - higher resolotion
-
-    if (this.trialDeadline) { this.trialDeadline.remove(false); }
-    this.timeoutActive = false;
-    this.trialDeadline = this.time.delayedCall(TRIAL_MS, () => this.onTrialTimeout());
+      step.label = labels[i];
+      step.labelText.setText(step.label);
+      step.labelText.setPosition(step.x, step.y - 30);
+      i++;
+    }
   });
-}
+  // Now we start measuring RT
+  this.rtStartHR = performance.now();// web time - higher resolotion
+
+  if (this.trialDeadline) { this.trialDeadline.remove(false); }
+  this.timeoutActive = false;
+  this.trialDeadline = this.time.delayedCall(TRIAL_MS, () => this.onTrialTimeout());
+
+  });
+  
+  }
 
 
- showSessionBreak() {
+ /**
+ * Displays a break screen between sessions and plays a sound.
+ */
+showSessionBreak() {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; } // 
   this.isPaused = true;
   this.stroopText.setText("")
@@ -550,6 +614,9 @@ setNewStroopTrial() {
   this.superSound.play();})
 }
 
+/**
+ * Ends the game phase, exports data as CSV, and redirects to Qualtrics.
+ */
 endGamePhase() {
   this.isPaused = true;
 
@@ -574,18 +641,20 @@ endGamePhase() {
   localStorage.setItem("taskVersion", "game");
   exportCSV(this.trialData, filename).finally(() => {
     // tiny buffer so the browser settles
-    this.time.delayedCall(300, () => { window.location.href = "qualtrics.html"; });
+    this.time.delayedCall(300, () => { this.BgMusic.stop(); window.location.href = "qualtrics.html"; });
   });
 
 }
 
+/**
+ * Handles cases where the player does not respond in time.
+ * Records non-response, updates feedback, and advances trial/session.
+ */
 handleNonResponse() {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
-  console.log("⛔ Non-response detected first time");
   if (this.nonResponseHandled) return;
   this.nonResponseHandled = true;
 
-  console.log("⛔ Non-response detected");
   this.feedbackText.setText("Try to respond faster!");
   if(this.hurryupSound.isPlaying == false){
     this.hurryupSound.play();}
@@ -626,7 +695,7 @@ handleNonResponse() {
 
     this.cleanup();
     this.CreateNewFloors();
-    // 🧠 Reset trial
+    //Reset trial
     this.time.delayedCall(500, () => {
       this.feedbackText.setText("");
       this.setNewStroopTrial();
@@ -637,6 +706,9 @@ handleNonResponse() {
   });
 }
 
+/**
+ * Removes all platforms and floors from the scene and clears the Stroop text.
+ */
 cleanup(){ 
     const toKill = []
     this.platforms.children.iterate(platform => {
@@ -654,23 +726,30 @@ cleanup(){
     this.stroopText.setText("");
 }
 
+/**
+ * Creates new floor and platforms, and resets player position.
+ */
 CreateNewFloors(){
   
-    // 🧱 Create new floor
+    // Create new floor
     this.floor = this.floors.create(sizes.width / 2, sizes.height - 150, "step");
     this.floor.setDisplaySize(sizes.width, step_sizes.width).refreshBody();
 
-    // 🧱 Create new steps
+    //Create new steps
     const firstStepY = this.floor.y - 200;
     this.step1 = this.platforms.create(step_locations.x1,firstStepY , "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     this.step2 = this.platforms.create(step_locations.x2, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
     this.step3 = this.platforms.create(step_locations.x3, firstStepY, "step").setDisplaySize(step_sizes.height, step_sizes.width).refreshBody();
 
-    // 👤 Reset player
+    //Reset player
     this.player.y = sizes.height - 250;
 
 }
 
+/**
+ * Called when a trial times out (no response).
+ * Cleans up platforms and lets update() handle non-response.
+ */
 onTrialTimeout() {
   // If already responded or we’re paused (session break etc.), do nothing.
   if (this.reacted || this.isPaused || this.nonResponseHandled) return;
@@ -681,18 +760,21 @@ onTrialTimeout() {
   // Remove all collision surfaces so gravity + scroll make the player fall
   this.cleanup();
 
-  // Do NOT advance trial here; let update() detect off-screen and call handleNonResponse()
 }
 
 
 
 // put inside GameScene
+/**
+ * Resets trial state variables and optionally resets geometry for a new session.
+ * @param {Object} options
+ * @param {boolean} options.forNewSession - If true, resets geometry.
+ */
 resetTrialState({ forNewSession = false } = {}) {
   if (this.trialDeadline) { this.trialDeadline.remove(false); this.trialDeadline = null; }
   this.timeoutActive = false;
   this.nonResponseHandled = false;
   this.reacted = false;
-  this.rtStartTime = null;
   this.feedbackText.setText("");
 
   if (forNewSession) {
@@ -701,6 +783,11 @@ resetTrialState({ forNewSession = false } = {}) {
     this.CreateNewFloors();
   }
 }
+ /**
+ * Quickly scrolls all game objects down to a target Y position.
+ * @param {number} yTarget - Target Y position.
+ * @param {number} duration - Duration of scroll animation (ms).
+ */
 fastForwardDownTo(yTarget, duration = FAST_DURATION) {
   const first = this.platforms.getChildren()[0];
   if (!first) return;
@@ -715,9 +802,9 @@ fastForwardDownTo(yTarget, duration = FAST_DURATION) {
     duration,
     ease: 'Sine.easeOut',
     onUpdate: (tw) => {
-      const v = tw.getValue();// current tween val
+      const v = tw.getValue();
       const d = v - last;    // the amount to move since the last frame
-      last = v;//last tw val
+      last = v;
 
       // move everything down
       this.bg1.y += d;
@@ -742,14 +829,28 @@ fastForwardDownTo(yTarget, duration = FAST_DURATION) {
   });
 }
 
+/**
+ * Picks a random element from an array.
+ * @param {Array} arr
+ * @returns {*}
+ */
 randomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+/**
+ * Picks a random element from an array, excluding a specified value.
+ * @param {Array} arr
+ * @param {*} exclude
+ * @returns {*}
+ */
 randomChoiceExcluding(arr, exclude) {
   const filtered = arr.filter(x => x !== exclude);
   return this.randomChoice(filtered);
 }
 
-//equal 1/3 probability
+/**
+ * Randomly selects a Stroop stimulus (congruent, incongruent, or neutral).
+ * @returns {Object} Stimulus object with wordText, inkColor, and condition.
+ */
 pickStroopStimulus() {
   const r = Math.random();
   if (r < 1/3) {
@@ -770,6 +871,9 @@ pickStroopStimulus() {
   }
 }
 
+/**
+ * Shows the demo introduction text and pauses the game.
+ */
 showDemoIntro() {
 if (!this.introText) return;
   this.physics.pause();
@@ -786,8 +890,11 @@ this.introText.setText(
 
 }
 
+/**
+ * Starts the demo phase, resets state, and runs the first demo trial.
+ */
 startDemo() {
-  this.rtText.setVisible(false);
+  //this.rtText.setVisible(false);
   this.introText?.setVisible(false);   // hide intro
   this.inDemo = true;                   // we are in demo mode
   this.resetTrialState({ forNewSession: true });
@@ -796,9 +903,11 @@ startDemo() {
   this.runDemoTrial();                  // show a single demo stimulus
 }
 
+/**
+ * Runs a single demo trial, displays stimulus, and sets up labels/hints.
+ */
 runDemoTrial() {
   this.reacted = false;      // allow input for this demo trial
-  this.rtStartTime = null;
   this.cleanup();
   this.CreateNewFloors();
   // fixation
@@ -871,11 +980,12 @@ runDemoTrial() {
             );
           }
 
-    // start demo timeout AFTER stimulus appears
   });
 }
 
-
+/**
+ * Handles timeout during demo trials, shows feedback, and retries the trial.
+ */
 onDemoTimeoutDemo() {
   if (!this.inDemo || this.isPaused) return;     // ignore if demo ended/paused
   this.feedbackText.setText("Try again.").setStyle({ color: "#ffffff" }).setVisible(true);
