@@ -4,7 +4,17 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Welcome – Stroop Experiment</title>
+  
+  <!--
+    Styles for a clean, centered card UI:
+    - Full-height flex container centers a white panel
+    - Subtle gradient background
+    - Accessible font sizes and color contrast
+  -->
+
   <style>
+
+    /* Page layout */
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(to right, #dbeafe, #f0f9ff);
@@ -13,23 +23,35 @@
       display: flex; justify-content: center; align-items: center;
       height: 100vh;
     }
+
+    /* Main panel (responsive width via clamp) */
     .container {
       background: #fff; padding: 40px 48px; border-radius: 20px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.1);
       width: clamp(340px, 90vw, 920px );
     }
+
+    /* Typography */
     h1 { margin: 0 0 8px; color: #1e3a8a; }
     h2 { margin: 16px 0 8px; color: #1f2937; font-size: 1.1rem; }
     p, label { color: #374151; font-size: 1.05rem; line-height: 1.65; }
+
+    /* Scrollable consent box (prevents page from growing too tall) */
     .consent-box {
       border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px;
       max-height: 420px; overflow: auto; background: #f8fafc;
     }
+
+    /* Shared layout for action rows (buttons/checkboxes) */
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+
+    /* Text input for Participant ID */
     input[type="text"] {
       padding: 12px; width: 100%; margin-top: 12px; font-size: 1rem;
       border: 1px solid #cbd5e1; border-radius: 8px; outline: none;
     }
+
+    /* Primary button styles */
     button {
       padding: 12px 20px; font-size: 1rem;
       background: #3b82f6; color: #fff; border: 0; border-radius: 8px;
@@ -37,15 +59,23 @@
     }
     button[disabled] { opacity: .6; cursor: not-allowed; }
     button:hover:not([disabled]) { background: #2563eb; }
+
+    /* Utility classes */
     .muted { color: #6b7280; font-size: .9rem; }
     .hidden { display: none; }
      ul { margin: 8px 0 0 18px; color:#374151; }
+
+     /* Emphasized warning box under consent */
     .warning { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:10px 12px; border-radius:8px; margin-top:12px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Step 1: Intro/Consent -->
+    <!--
+      STEP 1: CONSENT
+      - Presents study information and prerequisites
+      - "I Agree & Continue" remains disabled until all checkboxes are ticked
+    -->
     <section id="consentStep">
       <h1>Welcome!</h1>
       <p>Please read the information below and confirm you agree to participate.</p>
@@ -57,6 +87,7 @@
           You'll identify the <b>ink color</b> of words as quickly and accurately as possible.
           Total time: ~10-15 minutes.
         </p>
+
         <h2>Before You Begin</h2>
         <ul>
           <li><b>Quiet place:</b> choose a calm, distraction-free environment. Silence your phone and close other apps/tabs.</li>
@@ -64,19 +95,23 @@
           <li><b>Do not navigate away:</b> <u>do not click the browser's Back button or refresh/close the tab</u>. This will erase your progress.</li>
         </ul>
         <div class="warning"><b>Warning:</b> Using the browser's Back/Refresh will reset the task and delete your progress.</div>
+        
         <h2>Data & Privacy</h2>
         <p>
           We collect task responses (accuracy, reaction times) and a participant ID you provide.
           Data are stored de-identified for research purposes.
         </p>
+        
         <h2>Voluntary Participation</h2>
         <p>
           Participation is voluntary. You may stop at any time without penalty.
         </p>
+        
         <h2>Contact</h2>
         <p>For questions, contact the study team.</p>
       </div>
 
+      <!-- Consent/prerequisite checkboxes (all required) -->
       <div class="actions">
         <label>
           <input type="checkbox" id="consentCheckbox" />
@@ -86,13 +121,21 @@
         <label><input type="checkbox" class="prereq" /> I understand I must not use the browser Back/Refresh or close the tab during the task.</label>
       </div>
 
+      <!-- Navigation buttons -->
       <div class="actions">
+        <!-- Enabled only when consent + all prereqs checked -->
         <button id="agreeBtn" disabled>I Agree & Continue</button>
+        <!-- Non-consent exits to a blank page -->
         <button type="button" onclick="window.location.href='about:blank'">I Do Not Agree</button>
       </div>
     </section>
 
-    <!-- Step 2: Participant ID -->
+    <!--
+      STEP 2: PARTICIPANT ID
+      - Shown only after consent step completes
+      - Validates non-empty input
+      - Seeds localStorage keys and randomly routes to classic/game
+    -->
     <section id="idStep" class="hidden">
       <h1>Participant ID</h1>
       <p>Please enter your Participant ID to begin.</p>
@@ -101,11 +144,22 @@
       <div class="actions">
         <button id="startBtn">Start</button>
       </div>
+      <!-- Inline validation/error messages appear here -->
       <p class="muted" id="msg"></p>
     </section>
   </div>
 
+
+  <!--
+    Client-side controller:
+    - Manages button enablement (consent/prereqs)
+    - Persists consent/version timestamp
+    - Persists participantId
+    - Initializes flags used later by Qualtrics flow and task pages
+    - Randomizes task order and redirects
+  -->
   <script>
+    /* ---------- Element references ---------- */
     const consentStep = document.getElementById('consentStep');
     const idStep      = document.getElementById('idStep');
     const agreeBtn    = document.getElementById('agreeBtn');
@@ -113,6 +167,8 @@
     const startBtn    = document.getElementById('startBtn');
     const msg         = document.getElementById('msg');
     const prereqCbs = document.querySelectorAll('.prereq');
+
+    /* ---------- Event wiring ---------- */
 
     // Enable the agree button only when checked
     consentCb.addEventListener('change',updateAgree);
@@ -125,29 +181,34 @@
       const stamp = new Date().toISOString();
       localStorage.setItem('consentGiven', `v1|${stamp}`);
 
+      // Hide consent, show ID form
       consentStep.classList.add('hidden');
       idStep.classList.remove('hidden');
 
     });
 
-    // Start flow (your existing logic)
+    // On Start, validate ID, seed storage keys, randomize order, and redirect
     startBtn.addEventListener('click', () => {
       const id = document.getElementById('participantId').value.trim();
+
+      // Basic validation: prevent empty IDs
       if (!id) {
         msg.textContent = 'Please enter your Participant ID.';
         return;
       }
-      localStorage.setItem('participantId', id);
 
+      // Persist Participant ID for downstream pages (classic.html / game.html)
+      localStorage.setItem('participantId', id);
 
       // Save ID
       localStorage.setItem("participantId", id);
 
-      //to help qualtrics flow 
+      // Flags used by downstream flow control / Qualtrics integration
+      // "0" means not yet completed; pages should set these to "1" on finish
       localStorage.setItem("classicDone", "0");   
       localStorage.setItem("gameDone", "0");      
       
-      // Randomly choose task order
+      // Randomize task order: 50% classic-first vs game-first
       const order = Math.random() < 0.5 ? "classicFirst" : "gameFirst";
       localStorage.setItem("taskOrder", order);
       
@@ -159,8 +220,22 @@
       }
     });
     
+
+     /**
+     * updateAgree()
+     * Enables or disables the consent continue button based on the state of:
+     *  - Main consent checkbox (#consentCheckbox)
+     *  - All prerequisite checkboxes (.prereq)
+     *
+     * Side-effects:
+     *  - Sets agreeBtn.disabled to true/false
+     */
     function updateAgree() {
+
+      // Check that ALL prereq checkboxes are ticked
         const prereqsOk = Array.from(prereqCbs).every(cb => cb.checked);
+
+      // Enable only when consent and all prereqs are true
         agreeBtn.disabled = !(consentCb.checked && prereqsOk);
     }
   </script>
