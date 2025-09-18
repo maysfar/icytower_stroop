@@ -87,7 +87,7 @@ def export_csv_files(variable_dict, file_pathway): #export RT and accuracy raw d
         df = pd.DataFrame(rows, columns=all_cols)
         df.to_csv(output_path / f"{var}.csv", index=False)
 
-def export_IMI_data(qualitrics_file, file_pathway): #
+def export_IMI_data(qualitrics_file, file_pathway): #rearranging qualtrics data to a Jasp-friendly format
     df = pd.read_csv(qualitrics_file)
     cols_to_drop = [f"Q{i}" for i in range(1, 23)]
     df = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors="ignore")
