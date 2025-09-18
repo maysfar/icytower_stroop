@@ -2,7 +2,7 @@
 A web-based experiment that gamifies the Stroop cognitive task inside an Icy Tower- style platformer.
 Built with Phaser 3, jQuery, Vite, and integrated with Qualtrics for data collection.
 
-# OverView
+# Overview
 Participants complete two versions of the Stroop task:
     -Classic version - traditional text-based Stroop (press R/G/B keys)
     -Gamified version - a platformer where the player must jump to the correct platform matching the ink color of a word.
@@ -13,15 +13,15 @@ After each task, participants are redirected to Qualtrics for questionnaires.
 # Getting Started
 
 1. Clone the repository
-    git clone https://github.com/maysfar/icytower_stroop.git
+    'git clone https://github.com/maysfar/icytower_stroop.git'
 
-    cd icytower_stroop
+    'cd icytower_stroop'
 
 2. Install dependencies
-    npm install
+    'npm install'
 
 3. Run development server
-    npm run dev
+    'npm run dev'
 
     Then open the printed local URL in your browser.
 
